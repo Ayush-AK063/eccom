@@ -17,9 +17,11 @@ const AccountSidebar = () => {
   const context = useContext(MyContext);
 
   useEffect(() => {
-    const userAvatar = [];
-    userAvatar.push(context?.userData?.avatar);
-    setPreviews(userAvatar);
+    if (context?.userData?.avatar) {
+      setPreviews([context.userData.avatar]);
+    } else {
+      setPreviews([]);
+    }
   }, [context?.userData]);
 
   let img_arr = [];

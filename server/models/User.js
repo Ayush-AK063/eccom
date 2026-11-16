@@ -13,7 +13,19 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Please provide a password"],
+      default: null,
+    },
+    googleId: {
+      type: String,
+      default: null,
+    },
+    loginWithGoogle: {
+      type: Boolean,
+      default: false,
+    },
+    hasPassword: {
+      type: Boolean,
+      default: false,
     },
     avatar: {
       type: String,

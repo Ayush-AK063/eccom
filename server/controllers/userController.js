@@ -7,6 +7,20 @@ import generateAccessToken from "../utils/generateAccessToken.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import admin from "firebase-admin";
+
+// Initialise Firebase Admin SDK once (guard against hot-reload double-init)
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      // Replace literal \n in the env string with real newlines
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+    }),
+  });
+}
+
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -44,8 +58,9 @@ export const registerUserController = async (req, res) => {
       name,
       email,
       password: hashPassword,
+      hasPassword: true,
       otp: verifycode,
-      otp_expires: Date.now() + 10 * 60 * 1000, // 10 minutes from now
+      otp_expires: Date.now() + 10 * 60 * 1000,
     });
 
     await user.save();
@@ -460,10 +475,14 @@ export const verifyForgotPasswordOtp = async (req, res) => {
 
 export const resetPasswordController = async (req, res) => {
   try {
-    const { email, oldPassword, newPassword, confirmPassword } = req.body;
-    if (!email || !oldPassword || !newPassword || !confirmPassword) {
+    const { email, oldPassword, newPassword, confirmPassword, isGoogleUser } = req.body;
+
+    // For Google users, old password is not required
+    if (!email || (!isGoogleUser && !oldPassword) || !newPassword || !confirmPassword) {
       return res.status(400).json({
-        message: "Email, Old Password, New Password and Confirm Password are required",
+        message: isGoogleUser
+          ? "Email, New Password and Confirm Password are required"
+          : "Email, Old Password, New Password and Confirm Password are required",
         error: true,
         success: false,
       });
@@ -476,11 +495,14 @@ export const resetPasswordController = async (req, res) => {
         .json({ message: "User Not Found!", error: true, success: false });
     }
 
-    const checkPassword = await bcrypt.compare(oldPassword, user.password);
-    if (!checkPassword) {
-      return res
-        .status(400)
-        .json({ message: "Invalid Old Password", error: true, success: false });
+    // Only verify old password for non-Google users
+    if (!isGoogleUser) {
+      const checkPassword = await bcrypt.compare(oldPassword, user.password);
+      if (!checkPassword) {
+        return res
+          .status(400)
+          .json({ message: "Invalid Old Password", error: true, success: false });
+      }
     }
 
     if (newPassword !== confirmPassword) {
@@ -495,10 +517,13 @@ export const resetPasswordController = async (req, res) => {
     const hashPassword = await bcrypt.hash(newPassword, salt);
 
     user.password = hashPassword;
+    // Mark that this user now has a password — loginWithGoogle stays true
+    // so both Google login and email/password login continue to work
+    user.hasPassword = true;
     await user.save();
 
     return res.status(200).json({
-      message: "Password reset successfully",
+      message: isGoogleUser ? "Password set successfully" : "Password reset successfully",
       success: true,
       error: false,
     });
@@ -629,6 +654,98 @@ export const resendVerificationOtpController = async (req, res) => {
       message: "Verification OTP resent successfully",
       success: true,
       error: false,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || error,
+      error: true,
+      success: false,
+    });
+  }
+};
+
+// ─── Google OAuth Login ────────────────────────────────────────────────────
+export const googleLoginController = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        message: "ID token is required",
+        error: true,
+        success: false,
+      });
+    }
+
+    // Verify the Google ID token on the server using Firebase Admin SDK
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { name, email, picture, uid } = decodedToken;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Could not retrieve email from Google account",
+        error: true,
+        success: false,
+      });
+    }
+
+    // Find existing user or create a new one
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // New user — create with Google details, no password needed
+      user = new User({
+        name: name || email.split("@")[0],
+        email,
+        avatar: picture || "",
+        googleId: uid,
+        loginWithGoogle: true,
+        verify_email: true,       // Google already verified the email
+        status: "active",
+      });
+      await user.save();
+    } else {
+      // Existing user — update googleId and flag if not already set
+      if (!user.googleId) {
+        user.googleId = uid;
+        user.loginWithGoogle = true;
+        if (picture && !user.avatar) user.avatar = picture;
+        await user.save();
+      }
+    }
+
+    // Check account status
+    if (user.status !== "active") {
+      return res.status(400).json({
+        message: `Your account is ${user.status}. Please contact support.`,
+        error: true,
+        success: false,
+      });
+    }
+
+    // Issue your existing JWT tokens
+    const accessToken = await generateAccessToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id);
+
+    await User.findByIdAndUpdate(user._id, { last_login_date: Date.now() });
+
+    const cookiesOption = {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+    };
+    res.cookie("accessToken", accessToken, cookiesOption);
+    res.cookie("refreshToken", refreshToken, cookiesOption);
+
+    return res.status(200).json({
+      message: "Login Successful",
+      success: true,
+      error: false,
+      data: {
+        accessToken,
+        refreshToken,
+        user,
+      },
     });
   } catch (error) {
     return res.status(500).json({

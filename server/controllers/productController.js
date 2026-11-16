@@ -10,10 +10,9 @@ cloudinary.config({
   secure: true,
 });
 
-var imagesArr = [];
 export const uploadImages = async (req, res) => {
   try {
-    imagesArr = [];
+    const uploadedImages = [];
 
     const image = req.files;
 
@@ -29,13 +28,14 @@ export const uploadImages = async (req, res) => {
         req?.files[i]?.path,
         options
       );
-      imagesArr.push(result.secure_url);
+      uploadedImages.push(result.secure_url);
       fs.unlinkSync(`uploads/${req?.files[i]?.filename}`);
     }
 
     return res.status(200).json({
-      images: imagesArr,
+      images: uploadedImages,
       message: "Image uploaded successfully",
+      success: true,
     });
   } catch (error) {
     return res
@@ -49,7 +49,7 @@ export const createProduct = async (req, res) => {
     let product = new Product({
       name: req.body.name,
       description: req.body.description,
-      images: imagesArr,
+      images: req.body.images || [],
       brand: req.body.brand || null,
       price: req.body.price || 0,
       oldprice: req.body.oldprice || 0,
@@ -61,7 +61,7 @@ export const createProduct = async (req, res) => {
       thirdSubCat: req.body.thirdSubCat || null,
       countInStock: req.body.countInStock || 0,
       rating: req.body.rating || 0,
-      isFeatured: req.body.isFeatured || false,
+      productFlags: req.body.productFlags || [],
       discount: req.body.discount,
       productRam: req.body.productRam || null,
       size: req.body.size || null,
@@ -75,8 +75,6 @@ export const createProduct = async (req, res) => {
         .status(400)
         .json({ message: "Product not created", error: true, success: false });
     }
-
-    imagesArr = [];
 
     return res.status(201).json({
       product,
@@ -109,6 +107,9 @@ export const getAllProducts = async (req, res) => {
     }
     if (req.query.search && req.query.search !== "") {
       query.name = { $regex: req.query.search, $options: "i" };
+    }
+    if (req.query.flag && req.query.flag !== "") {
+      query.productFlags = { $in: [req.query.flag] };
     }
 
     const totalPosts = await Product.countDocuments(query);
@@ -535,7 +536,7 @@ export const getProductCount = async (req, res) => {
 
 export const getFeaturedProduct = async (req, res) => {
   try {
-    const products = await Product.find({ isFeatured: true }).populate("catId");
+    const products = await Product.find({ productFlags: { $in: ["featured"] } }).populate("catId");
 
     if (!products) {
       return res
@@ -669,7 +670,7 @@ export const updateProduct = async (req, res) => {
         thirdSubCat: req.body.thirdSubCat || null,
         countInStock: req.body.countInStock || 0,
         rating: req.body.rating || 0,
-        isFeatured: req.body.isFeatured || false,
+        productFlags: req.body.productFlags || [],
         discount: req.body.discount,
         productRam: req.body.productRam || null,
         size: req.body.size || null,
@@ -683,8 +684,6 @@ export const updateProduct = async (req, res) => {
         .status(400)
         .json({ message: "Product not updated", error: true, success: false });
     }
-
-    imagesArr = [];
 
     return res.status(200).json({
       product,

@@ -32,6 +32,7 @@ const MyContext = createContext();
 
 function App() {
   const [openProductDetailsModal, setOpenProductDetailsModal] = useState(false);
+  const [productData, setProductData] = useState(null);
   const [maxWidth, setMaxWidth] = useState("lg");
   const [fullWidth, setFullWidth] = useState(true);
   const [isLogin, setIsLogin] = useState(false);
@@ -97,7 +98,8 @@ function App() {
     setIsLogin,
     setUserData,
     userData,
-
+    productData,
+    setProductData
   };
 
   return (
@@ -157,10 +159,10 @@ function App() {
               <IoClose className="text-[20px]" />
             </Button>
             <div className="col1 w-[40%] px-3">
-              <ProductZoom />
+              <ProductZoom item={productData} />
             </div>
             <div className="col2 w-[60%] px-8 pr-16 py-8 productContent">
-              <ProductDetailsComponent />
+              <ProductDetailsComponent item={productData} />
             </div>
           </div>
         </DialogContent>

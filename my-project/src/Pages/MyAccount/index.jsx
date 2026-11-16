@@ -17,6 +17,7 @@ const MyAccount = () => {
     name: "",
     email: "",
     mobile: "",
+    country: "",
   });
 
   const [ChangePassword, setChangePassword] = useState({
@@ -39,14 +40,15 @@ const MyAccount = () => {
   useEffect(() => {
     setUserId(context?.userData?._id);
     setFormFields({
-      name: context?.userData?.name,
-      email: context?.userData?.email,
-      mobile: context?.userData?.mobile,
-    })
+      name: context?.userData?.name || "",
+      email: context?.userData?.email || "",
+      mobile: context?.userData?.mobile || "",
+      country: context?.userData?.country || "",
+    });
 
     setChangePassword({
-      email: context?.userData?.email,
-    })
+      email: context?.userData?.email || "",
+    });
   }, [context?.userData]);
 
   const onChangeInput = (e) => {
@@ -110,7 +112,10 @@ const MyAccount = () => {
     e.preventDefault();
     setIsLoading2(true);
 
-    if (ChangePassword.oldPassword === "") {
+    const isGoogleUser = !context?.userData?.hasPassword;
+
+    // Only require old password for non-Google users
+    if (!isGoogleUser && ChangePassword.oldPassword === "") {
       context.openAlertBox("error", "old password field required");
       setIsLoading2(false);
       return false;
@@ -134,7 +139,12 @@ const MyAccount = () => {
       return false;
     }
 
-    postData(`/api/user/reset-password`, ChangePassword, { withCredentials: true }).then(
+    const payload = {
+      ...ChangePassword,
+      isGoogleUser,   // backend uses this to skip old password check
+    };
+
+    postData(`/api/user/reset-password`, payload, { withCredentials: true }).then(
       (res) => {
         if (res?.error !== true) {
           setIsLoading2(false);
@@ -144,6 +154,7 @@ const MyAccount = () => {
             newPassword: '',
             confirmPassword: '',
           });
+          setIsChangedPasswordFormShow(false);
         } else {
           context.openAlertBox("error", res?.message);
           setIsLoading2(false);
@@ -160,10 +171,33 @@ const MyAccount = () => {
         </div>
 
         <div className="col2 w-[50%]">
+
+          {/* Complete profile banner — shown for any user missing phone/country */}
+          {(!context?.userData?.mobile || !context?.userData?.country) && (
+            <div className="flex items-start gap-3 mb-5 p-4 rounded-md border-l-4 border-[#ff5252] bg-[#fff5f5]">
+              <span className="text-[22px]">👋</span>
+              <div>
+                <p className="font-[600] text-[15px] mb-1">Complete your profile</p>
+                <p className="text-[13px] text-gray-600">
+                  Please add your
+                  {!context?.userData?.mobile && !context?.userData?.country
+                    ? " phone number and country"
+                    : !context?.userData?.mobile
+                      ? " phone number"
+                      : " country"}{" "}
+                  below to get the full experience.
+                </p>
+              </div>
+            </div>
+          )}
+
+
           <div className="p-5 bg-white rounded-md shadow-md card mb-5">
             <div className="flex items-center pb-3">
               <h2 className="pb-0">My Profile</h2>
-              <Button className="!ml-auto" onClick={() => setIsChangedPasswordFormShow(!isChangedPasswordFormShow)}>change Password</Button>
+              <Button className="!ml-auto" onClick={() => setIsChangedPasswordFormShow(!isChangedPasswordFormShow)}>
+                {context?.userData?.hasPassword ? "Change Password" : "Set Password"}
+              </Button>
             </div>
             <hr />
             <form className="mt-8" action="" onSubmit={handleSubmit}>
@@ -195,12 +229,24 @@ const MyAccount = () => {
                 </div>
               </div>
               <div className="flex items-center gap-5 mt-4">
-                <div className="w-[100%]">
+                <div className="w-[50%]">
                   <TextField
                     name="mobile"
-                    value={formFields.mobile}
+                    value={formFields.mobile || ""}
                     disabled={isLoading === true ? true : false}
                     label="Phone no."
+                    variant="outlined"
+                    size="small"
+                    className="w-full"
+                    onChange={onChangeInput}
+                  />
+                </div>
+                <div className="w-[50%]">
+                  <TextField
+                    name="country"
+                    value={formFields.country || ""}
+                    disabled={isLoading === true ? true : false}
+                    label="Country"
                     variant="outlined"
                     size="small"
                     className="w-full"
@@ -235,25 +281,28 @@ const MyAccount = () => {
             <Collapse isOpened={isChangedPasswordFormShow}>
               <div className="p-5 bg-white rounded-md shadow-md card">
                 <div className="flex items-center pb-3">
-                  <h2 className="pb-0">Change Password</h2>
+                  <h2 className="pb-0">{context?.userData?.hasPassword ? "Change Password" : "Set Password"}</h2>
                 </div>
                 <hr />
                 <form className="mt-8" action="" onSubmit={handlePasswordChange}>
                   <div className="flex items-center gap-5">
-                    <div className="w-[50%]">
-                      <TextField
-                        name="oldPassword"
-                        value={ChangePassword.oldPassword}
-                        disabled={isLoading2 === true ? true : false}
-                        label="Old Password"
-                        variant="outlined"
-                        size="small"
-                        className="w-full"
-                        onChange={onChangeInput}
-                      />
-                    </div>
+                    {/* Hide Old Password if user hasn't set a password yet */}
+                    {context?.userData?.hasPassword && (
+                      <div className="w-[50%]">
+                        <TextField
+                          name="oldPassword"
+                          value={ChangePassword.oldPassword}
+                          disabled={isLoading2 === true ? true : false}
+                          label="Old Password"
+                          variant="outlined"
+                          size="small"
+                          className="w-full"
+                          onChange={onChangeInput}
+                        />
+                      </div>
+                    )}
 
-                    <div className="w-[50%]">
+                    <div className={context?.userData?.hasPassword ? "w-[50%]" : "w-full"}>
                       <TextField
                         name="newPassword"
                         value={ChangePassword.newPassword}
