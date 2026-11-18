@@ -1,11 +1,50 @@
-.productItem .title{
-    line-height: 18px;
+/* naam ek line, lamba ho to ... */
+.productItem .title a {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.productItem .actions button:hover svg{
+.productItem .actions button:hover svg {
     color: #fff !important;
 }
 
 .productItem .actions button svg {
     pointer-events: none !important;
+}
+
+/* Card ka compact Add to Cart: outline -> hover pe filled */
+.addCartCompact {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 38px;
+    border-radius: 6px !important;
+    border: 1.5px solid #ff5252 !important;
+    background: #fff !important;
+    color: #ff5252 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    white-space: nowrap;
+    letter-spacing: 0.01em;
+    transition: all 0.2s ease !important;
+}
+
+.addCartCompact:hover {
+    background: #ff5252 !important;
+    color: #fff !important;
+}
+
+.addCartCompact.Mui-disabled {
+    border-color: #e5e7eb !important;
+    color: #9ca3af !important;
+    background: #f9fafb !important;
+}
+
+/* Always-visible heart ko halki shadow, baaki buttons jaisa */
+.productItem .cardWish .MuiButton-root {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }

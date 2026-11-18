@@ -1,46 +1,48 @@
 import React from 'react'
-import { IoMdTime } from "react-icons/io";
 import { Link } from 'react-router-dom';
-import { IoIosArrowForward } from "react-icons/io";
+import { FiArrowRight, FiCalendar } from "react-icons/fi";
 
 const BlogItem = ({ item }) => {
+  const link = `/blog/${item?._id}`;
   const date = item?.createdAt
-    ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }).toUpperCase()
+    ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
-
-  const description = item?.description?.length > 100
-    ? item.description.substr(0, 100) + '...'
-    : item?.description;
+  // description mein HTML ho sakta hai (editor se) -> plain text
+  const text = (item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
   return (
-    <div className='blogItem group'>
-        <div className='relative w-full overflow-hidden rounded-md imgWrapper'>
-            <img src={item?.images?.[0]}
-             alt={item?.title || 'blog'}
-             className='w-full transition-all cursor-pointer group-hover:scale-105 group-hover:rotate-1' />
+    <article className='blogItem group h-full flex flex-col bg-white border border-gray-100 rounded-md overflow-hidden transition-all duration-300 hover:shadow-[0_14px_30px_-12px_rgba(17,24,39,0.18)] hover:border-gray-200'>
+      <Link to={link} className='block relative aspect-[16/10] overflow-hidden bg-gray-100'>
+        {item?.images?.[0] && (
+          <img
+            src={item.images[0]}
+            alt={item?.title || 'Blog'}
+            loading='lazy'
+            className='absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105'
+          />
+        )}
+      </Link>
 
-            {date && (
-              <span className='absolute font-[500] gap-1 rounde-md p-1 text-[11px] bottom-[15px] right-[15px] z-50 flex items-center justify-center text-white bg-primary '>
-                  <IoMdTime className='text-[16px]'/> {date}
-              </span>
-            )}
-        </div>
-
-        <div className='py-4 info'>
-            <h2 className='text-[16px] font-[600] text-black'>
-                <Link to={`/blog/${item?._id}`} className='link'>
-                    {item?.title}
-                </Link>
-            </h2>
-            <p className='text-[13px] font-[400] text-[rgba(0,0,0,0.8)] mb-4'>
-                {description}
-            </p>
-            <Link to={`/blog/${item?._id}`}
-             className='flex items-center gap-1 font-[500] text-[14px] link hover:underline' >
-                Read More <IoIosArrowForward/>
-            </Link>
-        </div>
-    </div>
+      <div className='flex flex-col flex-1 p-4'>
+        {date && (
+          <span className='flex items-center gap-1.5 text-[12px] font-[500] text-gray-500'>
+            <FiCalendar className='text-[13px]' /> {date}
+          </span>
+        )}
+        <h3 className='mt-2 text-[16px] font-[700] text-gray-900 leading-[22px] line-clamp-2'>
+          <Link to={link} className='hover:text-primary transition-colors'>{item?.title}</Link>
+        </h3>
+        {text && (
+          <div className='mt-2 text-[13px] text-gray-600 leading-[20px] line-clamp-2'>{text}</div>
+        )}
+        <Link
+          to={link}
+          className='mt-auto pt-4 inline-flex items-center gap-1.5 w-fit text-[13px] font-[600] text-primary'
+        >
+          Read more <FiArrowRight className='transition-transform duration-300 group-hover:translate-x-1' />
+        </Link>
+      </div>
+    </article>
   )
 }
 

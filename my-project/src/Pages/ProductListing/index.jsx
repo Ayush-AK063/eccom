@@ -67,6 +67,9 @@ const ProductListing = () => {
     if (params.get('subCatId')) next.subCatId = [params.get('subCatId')]
     if (params.get('thirdSubCatId')) next.thirdSubCatId = [params.get('thirdSubCatId')]
     if (params.get('q')) next.search = params.get('q').trim()
+    // Home ke 'Deals under ₹X' tiles se
+    if (params.get('maxPrice') && !isNaN(+params.get('maxPrice'))) next.maxPrice = +params.get('maxPrice')
+    if (params.get('minPrice') && !isNaN(+params.get('minPrice'))) next.minPrice = +params.get('minPrice')
     setFilters(next)
     setPage(1)
     window.scrollTo(0, 0)

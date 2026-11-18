@@ -7,6 +7,8 @@ import { styled } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { FaRegHeart } from "react-icons/fa";
+import { IoGitCompareOutline } from "react-icons/io5";
+import { useCompare } from "../../context/CompareContext";
 import Tooltip from "@mui/material/Tooltip";
 import Navigation from "./Navigation";
 import { MyContext } from "../../App";
@@ -40,6 +42,7 @@ const Header = () => {
   };
 
   const context = useContext(MyContext);
+  const { compareCount } = useCompare();
   const history = useNavigate();
 
   const logout = () => {
@@ -63,11 +66,11 @@ const Header = () => {
 
   return (
     <header className="bg-white">
-      <div className="top-strip py-4 border-t-[1px] border-b-[1px] border-gray-250">
+      <div className="top-strip py-[5px] border-t-[1px] border-b-[1px] border-gray-250">
         <div className="container">
           <div className="flex items-center justify-between">
             <div className="col1 w-[50%]">
-              <p className="text-[12px] font-[500]">
+              <p className="text-[12px] font-[500] leading-[20px]">
                 Get up to 50% off new season styles, limited time only
               </p>
             </div>
@@ -76,7 +79,7 @@ const Header = () => {
                 <li className="list-none">
                   <Link
                     to="#"
-                    className="text-[13px] link font-[500] transition"
+                    className="text-[12px] leading-[20px] link font-[500] transition"
                   >
                     Help Center
                   </Link>
@@ -84,7 +87,7 @@ const Header = () => {
                 <li className="list-none">
                   <Link
                     to="#"
-                    className="text-[13px] link font-[500] transition"
+                    className="text-[12px] leading-[20px] link font-[500] transition"
                   >
                     Order Tracking
                   </Link>
@@ -219,6 +222,15 @@ const Header = () => {
               )}
 
               <li>
+                <Tooltip title="Compare">
+                  <Link to="/compare">
+                    <IconButton aria-label="compare">
+                      <StyledBadge badgeContent={compareCount} showZero color="secondary">
+                        <IoGitCompareOutline />
+                      </StyledBadge>
+                    </IconButton>
+                  </Link>
+                </Tooltip>
                 <Tooltip title="Wishlist">
                   <Link to="/my-list">
                     <IconButton aria-label="wishlist">

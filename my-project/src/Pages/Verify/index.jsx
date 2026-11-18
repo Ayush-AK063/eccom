@@ -1,82 +1,104 @@
-import React, { useContext } from 'react'
-import { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom';
+import CircularProgress from '@mui/material/CircularProgress';
+import { FiArrowLeft, FiMail } from 'react-icons/fi';
 import OtpBox from '../../components/OtpBox';
-import { Button } from '@mui/material';
+import AuthLayout from '../../components/AuthLayout';
 import { postData } from '../../utils/api';
-import { useNavigate } from 'react-router-dom';
 import { MyContext } from '../../App';
 
+const RESEND_AFTER = 30;
+
+// Register ke baad email verify, ya forgot-password ka OTP
 const Verify = () => {
-    const [otp, setOtp] = useState("");
-    const handleOtpChange = (value) => {
-        setOtp(value);
+  const context = useContext(MyContext);
+  const history = useNavigate();
+  const email = localStorage.getItem('userEmail') || '';
+  const isForgot = localStorage.getItem('actionType') === 'forgot-password';
+
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [wait, setWait] = useState(RESEND_AFTER);
+
+  useEffect(() => {
+    if (!email) history(isForgot ? '/forgot-password' : '/register');
+  }, [email, isForgot, history]);
+
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
+
+  const verifyOTP = async (e) => {
+    e.preventDefault();
+    if (otp.length !== 6) return context.openAlertBox('error', 'Please enter the 6-digit code');
+    setLoading(true);
+    const res = await postData(isForgot ? '/api/user/verify-forgot-password-otp' : '/api/user/verifyemail', { email, otp });
+    setLoading(false);
+    if (res?.error === false) {
+      context.openAlertBox('success', res?.message || 'Verified');
+      if (isForgot) {
+        localStorage.setItem('otpVerified', '1');
+        history('/forgot-password');
+      } else {
+        localStorage.removeItem('userEmail');
+        history('/login');
+      }
+    } else {
+      context.openAlertBox('error', res?.message || 'Invalid code');
     }
+  };
 
-    const context = useContext(MyContext);
-    const history = useNavigate();
-
-    const verifyOTP = (e) => {
-        e.preventDefault();
-
-        const actionType = localStorage.getItem('actionType');
-
-        if ( actionType !== 'forgot-password'){
-          postData("/api/user/verifyemail",{
-            email:localStorage.getItem("userEmail"),
-            otp:otp
-          }).then((res)=>{
-            if(res?.error === false){
-              context.openAlertBox("success", res?.message);
-              localStorage.removeItem("userEmail")
-              history("/login")
-            } else {
-              context.openAlertBox("error", res?.message);
-            }
-          })
-        } else {
-          postData("/api/user/verify-forgot-password-otp",{
-            email:localStorage.getItem("userEmail"),
-            otp:otp
-          }).then((res)=>{
-            if(res?.error === false){
-              context.openAlertBox("success", res?.message);
-              history("/forgot-password")
-            } else {
-              context.openAlertBox("error", res?.message);
-            }
-          })
-        }
+  const resend = async () => {
+    if (wait > 0 || resending) return;
+    setResending(true);
+    const res = await postData(isForgot ? '/api/user/forgot-password' : '/api/user/resend-otp', { email });
+    setResending(false);
+    if (res?.error === false) {
+      context.openAlertBox('success', res?.message || 'A new code has been sent');
+      setWait(RESEND_AFTER);
+    } else {
+      context.openAlertBox('error', res?.message || 'Could not resend the code');
     }
-    
+  };
+
   return (
-    <section className='py-10 section'>
-      <div className='container'>
-        <div className='shadow-md w-[400px] m-auto rounded-md bg-white p-5 px-10 card'>
-            <div className='flex items-center justify-center text-center'>
-                <img src="/images/verify2.png" 
-                alt="verify icon" 
-                width='80'/>
-            </div>
-          <h3 className='text-center text-[18px] text-black mt-4 mb-1'>
-            Verify OTP
-        </h3>
-
-        <p className='mt-0 mb-4 text-center'>
-            OTP sent to <span className='font-bold text-primary'>{localStorage.getItem("userEmail")}</span>
-        </p>
-
-        <form onSubmit={verifyOTP} action="">
-            <OtpBox length={6} onChange={handleOtpChange}/>
-
-            <div className='flex items-center justify-center px-3 mt-5'>
-                <Button type='submit' className='w-full btn-org btn-lg'>Verify Otp</Button>
-            </div>
-        </form>
-
-        </div>
+    <AuthLayout
+      title='Check your email'
+      subtitle={<>We sent a 6-digit code to <b className='text-gray-900'>{email}</b></>}
+      panelTitle={isForgot ? 'Let’s get you back in.' : 'One last step.'}
+      panelText={isForgot ? 'Enter the code from your email to reset your password.' : 'Verify your email to activate your account and start shopping.'}
+    >
+      <div className='flex justify-center mb-6'>
+        <span className='w-[56px] h-[56px] rounded-full bg-[#fff1f0] text-primary text-[24px] flex items-center justify-center'><FiMail /></span>
       </div>
-    </section>
-  )
-}
 
-export default Verify
+      <form onSubmit={verifyOTP} className='flex flex-col gap-5'>
+        <OtpBox length={6} onChange={setOtp} />
+        <button type='submit' disabled={loading} className='authSubmit'>
+          {loading ? <CircularProgress size={20} color='inherit' /> : isForgot ? 'Verify & continue' : 'Verify email'}
+        </button>
+      </form>
+
+      <div className='mt-5 text-center text-[13px] text-gray-600'>
+        Didn’t get the code?{' '}
+        {wait > 0 ? (
+          <span className='text-gray-400'>Resend in 0:{String(wait).padStart(2, '0')}</span>
+        ) : (
+          <button type='button' onClick={resend} disabled={resending} className='font-[700] text-primary hover:underline'>
+            {resending ? 'Sending…' : 'Resend code'}
+          </button>
+        )}
+      </div>
+      <div className='mt-1 text-center text-[11px] text-gray-400'>Check your spam folder if you can’t find it.</div>
+
+      <Link to={isForgot ? '/forgot-password' : '/register'} className='mt-6 flex items-center justify-center gap-1.5 text-[13px] font-[600] text-gray-600 hover:text-primary'>
+        <FiArrowLeft /> {isForgot ? 'Use a different email' : 'Back to sign up'}
+      </Link>
+    </AuthLayout>
+  );
+};
+
+export default Verify;

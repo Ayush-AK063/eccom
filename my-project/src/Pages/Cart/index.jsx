@@ -1,84 +1,155 @@
-import React, { useContext, useEffect } from 'react'
-import { BsCartX } from 'react-icons/bs';
+import React, { useContext, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom';
-import { Button } from '@mui/material';
+import { FiArrowLeft, FiChevronRight, FiLock, FiShoppingBag, FiTruck } from 'react-icons/fi';
+import { LiaMoneyBillWaveSolid } from 'react-icons/lia';
 import CartItems from './CartItems';
+import ProductSlider from '../../components/ProductSlider';
 import { MyContext } from '../../App';
+import { postData } from '../../utils/api';
 import { formatPrice } from '../../utils/formatPrice';
+import './style.css';
 
 const CartPage = () => {
-
   const context = useContext(MyContext)
+  const cartData = (context?.cartData || []).filter((i) => i?.productId)
+  const [suggestions, setSuggestions] = useState([])
 
-  // Page hamesha upar se khule
+  useEffect(() => { window.scrollTo(0, 0) }, [])
+
+  // "You may also like": top-rated, jo cart mein nahi hain
+  const cartIds = cartData.map((i) => i.productId._id).join(',')
   useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [])
-  const cartData = context?.cartData || []
-  const subTotal = cartData.reduce((total, item) => total + (item?.productId?.price || 0) * (item?.quantity || 1), 0)
+    let alive = true
+    postData('/api/product/filters', { sortBy: 'rating', order: 'desc', limit: 20 }).then((res) => {
+      if (!alive) return
+      const inCart = new Set(cartIds.split(','))
+      setSuggestions((res?.products || []).filter((p) => !inCart.has(p._id)).slice(0, 12))
+    })
+    return () => { alive = false }
+  }, [cartIds])
+
+  const itemCount = cartData.reduce((t, i) => t + (i.quantity || 1), 0)
+  const subTotal = cartData.reduce((t, i) => t + (i.productId.price || 0) * (i.quantity || 1), 0)
+  const mrpTotal = cartData.reduce((t, i) => t + Math.max(i.productId.oldprice || 0, i.productId.price || 0) * (i.quantity || 1), 0)
+  const discount = mrpTotal - subTotal
+
+  const breadcrumb = (
+    <nav className='flex items-center gap-1.5 text-[13px] text-gray-500 mb-3' aria-label='breadcrumb'>
+      <Link to='/' className='hover:text-primary'>Home</Link>
+      <FiChevronRight className='text-gray-300' />
+      <span className='text-gray-900'>Cart</span>
+    </nav>
+  )
+
+  const youMayLike = suggestions.length > 0 && (
+    <div className='mt-12'>
+      <h2 className='text-[20px] font-[700] text-gray-900 leading-tight'>You may also like</h2>
+      <div className='text-[13px] text-gray-500 mt-1'>Top-rated picks from our store</div>
+      <ProductSlider items={6} data={suggestions} />
+    </div>
+  )
 
   if (cartData.length === 0) {
     return (
-      <section className='py-5 pb-10 section'>
-        <div className='container w-[80%] max-w-[80%] flex flex-col items-center justify-center gap-4 py-20 bg-white rounded-md shadow-md'>
-          <BsCartX className='text-[120px] text-[rgba(0,0,0,0.25)]' />
-          <h2 className='text-[20px] font-[600]'>Your cart is currently empty</h2>
-          {!context?.isLogin && <p className='mt-0'>Please <Link to='/login' className='link text-primary font-[600]'>login</Link> to see your cart.</p>}
-          <Link to='/'><Button className='btn-org'>Continue Shopping</Button></Link>
+      <section className='bg-white py-6 pb-12'>
+        <div className='container'>
+          {breadcrumb}
+          <div className='flex flex-col items-center text-center py-16 border border-gray-100 rounded-md'>
+            <span className='w-[88px] h-[88px] rounded-full bg-[#fff1f0] text-primary text-[38px] flex items-center justify-center'>
+              <FiShoppingBag />
+            </span>
+            <h1 className='mt-5 text-[22px] font-[700] text-gray-900'>Your cart is empty</h1>
+            <div className='mt-2 text-[14px] text-gray-500 max-w-[420px] leading-[22px]'>
+              {context?.isLogin
+                ? 'Looks like you haven’t added anything yet. Browse our deals and collections to get started.'
+                : <>Please <Link to='/login' className='text-primary font-[600] hover:underline'>log in</Link> to see the items you added to your cart.</>}
+            </div>
+            <div className='flex flex-wrap justify-center gap-3 mt-6'>
+              <Link to='/productListing' className='inline-flex items-center h-[44px] px-6 rounded-md bg-gray-900 text-white text-[14px] font-[600] hover:bg-primary transition-colors'>
+                Start shopping
+              </Link>
+              {context?.isLogin && (
+                <Link to='/my-list' className='inline-flex items-center h-[44px] px-6 rounded-md border border-gray-200 text-[14px] font-[600] text-gray-900 hover:border-gray-900'>
+                  View wishlist
+                </Link>
+              )}
+            </div>
+          </div>
+          {youMayLike}
         </div>
       </section>
     )
   }
 
   return (
-    <section className='py-5 pb-10 section'>
-        <div className='container w-[80%] max-w-[80%] flex gap-5'>
-            <div className='leftTop w-[70%]'>
-                <h2>Your Cart</h2>
-                <p className='mt-0'>There are <span className='font-bold text-primary'>{cartData.length}</span> products in your cart</p>
-            </div>
-            <div className='rightTop w-[30%]'>
-                <h2>Cart Total</h2>
-            </div>
+    <section className='bg-white py-6 pb-12'>
+      <div className='container'>
+        {breadcrumb}
+        <div className='flex flex-wrap items-end justify-between gap-3 mb-5'>
+          <h1 className='text-[26px] font-[700] text-gray-900 leading-tight'>
+            Shopping Cart <span className='text-[15px] font-[500] text-gray-500'>({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+          </h1>
+          <Link to='/productListing' className='inline-flex items-center gap-1.5 text-[13px] font-[600] text-gray-700 hover:text-primary'>
+            <FiArrowLeft /> Continue shopping
+          </Link>
         </div>
-        <div className='container w-[80%] max-w-[80%] flex gap-5'>
-            <div className='leftPart w-[70%]'>
-                <div className='bg-white rounded-md shadow-md'>
-                    {cartData.map((item) => (
-                        <CartItems key={item._id} item={item} />
-                    ))}
+
+        <div className='cpGrid'>
+          {/* Items */}
+          <div>
+            <div className='cpHead'>
+              <span>Product</span><span>Price</span><span className='text-center'>Quantity</span><span className='text-right'>Total</span>
+            </div>
+            <ul className='cpList'>
+              {cartData.map((item) => <CartItems key={item._id} item={item} />)}
+            </ul>
+          </div>
+
+          {/* Summary */}
+          <aside className='cpSummary'>
+            <h2 className='text-[17px] font-[700] text-gray-900'>Order Summary</h2>
+
+            <div className='mt-4 flex flex-col gap-2.5 text-[14px]'>
+              <div className='flex justify-between text-gray-600'>
+                <span>Price ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+                <span className='text-gray-900'>{formatPrice(mrpTotal)}</span>
+              </div>
+              {discount > 0 && (
+                <div className='flex justify-between text-gray-600'>
+                  <span>Discount</span>
+                  <span className='text-[#15803d] font-[600]'>− {formatPrice(discount)}</span>
                 </div>
+              )}
+              <div className='flex justify-between text-gray-600'>
+                <span>Shipping</span>
+                <span className='text-[#15803d] font-[600]'>Free</span>
+              </div>
             </div>
 
-            <div className='rightPart w-[30%]'>
-                <div className='p-5 bg-white rounded-md shadow-md sticky top-[150px] z-[90]'>
-                    <p className='flex items-center justify-between'>
-                        <span className='text-[14px] font-[500]'>Subtotal</span>
-                        <span className='font-bold text-primary'>{formatPrice(subTotal)}</span>
-                    </p>
-                    <p className='flex items-center justify-between'>
-                        <span className='text-[14px] font-[500]'>Shipping</span>
-                        <span className='font-bold'>Free</span>
-                    </p>
-                    <p className='flex items-center justify-between'>
-                        <span className='text-[14px] font-[500]'>Estimate for</span>
-                        <span className='font-bold'>India</span>
-                    </p>
-                    <p className='flex items-center justify-between'>
-                        <span className='text-[14px] font-[500]'>Total</span>
-                        <span className='font-bold text-primary'>{formatPrice(subTotal)}</span>
-                    </p>
-
-                    <br />
-
-                    <Link to='/checkout'>
-                        <Button className='w-full btn-org btn-lg'>
-                            Checkout
-                        </Button>
-                    </Link>
-                </div>
+            <div className='flex justify-between items-baseline mt-4 pt-4 border-t border-dashed border-gray-200'>
+              <span className='text-[16px] font-[700] text-gray-900'>Total</span>
+              <span className='text-[22px] font-[800] text-gray-900'>{formatPrice(subTotal)}</span>
             </div>
+
+            {discount > 0 && (
+              <div className='mt-3 px-3 py-2 rounded-md bg-[#f0fdf4] text-[13px] font-[600] text-[#15803d]'>
+                You save {formatPrice(discount)} on this order
+              </div>
+            )}
+
+            <Link to='/checkout' className='cpCheckout'>
+              <FiLock className='text-[15px]' /> Proceed to Checkout
+            </Link>
+
+            <div className='mt-4 flex flex-col gap-2.5 text-[12px] text-gray-500'>
+              <div className='flex items-center gap-2'><FiTruck className='text-[15px] text-gray-400' /> Free shipping · Est. delivery in 2-3 days</div>
+              <div className='flex items-center gap-2'><LiaMoneyBillWaveSolid className='text-[16px] text-gray-400' /> Cash on Delivery available</div>
+            </div>
+          </aside>
         </div>
+
+        {youMayLike}
+      </div>
     </section>
   )
 }

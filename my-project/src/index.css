@@ -92,6 +92,13 @@ h1, h2, h3, h4, h5, h6{
 
 nav ul button{
     text-transform: capitalize !important;
+    white-space: nowrap !important;
+}
+nav .nav > li > a > button,
+nav .nav > li > button{
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    min-width: 0 !important;
 }
 
 nav ul button:hover{
@@ -295,21 +302,21 @@ input[type=number]::-webkit-outer-spin-button {
     padding: 0px !important;
 }
 
-.cartPanel .MuiPaper-root{
-    width: 400px;
-}
 
 #size-menu .MuiButtonBase-root{
     font-size: 12px !important;
 }
 
 .otpBox input{
-    border: 1px solid rgba(0, 0, 0, 0.3) !important;
+    border: 1.5px solid #e5e7eb !important;
     outline: none !important;
-    border-radius: 4px;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color .15s ease, box-shadow .15s ease;
 }
 .otpBox input:focus{
-    border: 1px solid rgba(0, 0, 0, 0.7) !important;
+    border-color: #111827 !important;
+    box-shadow: 0 0 0 3px rgba(17,24,39,0.06);
 }
 .otpPage .container{
     height: 90vh;
@@ -354,4 +361,195 @@ button .MuiCircularProgress-root{
 .addressPanel .MuiPaper-root{
   width: 500px;
   max-width: 100%;
+}
+
+/* Top banners: image kaisi bhi ho, box ka size fix rahe */
+.homeSliderV2 .swiper-slide{
+    height: 100% !important;
+}
+
+/* Product slider arrows */
+.psNav{
+    position: absolute;
+    top: 38%;
+    z-index: 30;
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    background: #fff;
+    color: #111827;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 6px 16px -6px rgba(0,0,0,0.25);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    opacity: 0;
+    transition: opacity .25s ease, background .2s ease, color .2s ease;
+}
+@media (min-width: 768px){ .psNav{ display: flex; } }
+.productSlider:hover .psNav{ opacity: 1; }
+.psNav:hover{ background: #111827; color: #fff; border-color: #111827; }
+
+/* Popular Products: pill tabs */
+.pillTabs{ min-height: 0 !important; }
+.pillTabs .MuiTabs-indicator{ display: none; }
+.pillTabs .MuiTabs-flexContainer{ gap: 8px; }
+.pillTabs .MuiTab-root{
+    min-height: 34px !important;
+    min-width: 0 !important;
+    padding: 6px 16px !important;
+    border-radius: 9999px;
+    border: 1px solid #e5e7eb;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-transform: capitalize !important;
+    color: #4b5563 !important;
+    transition: all .2s ease;
+}
+.pillTabs .MuiTab-root:hover{ border-color: #111827; color: #111827 !important; }
+.pillTabs .MuiTab-root.Mui-selected{
+    background: #111827;
+    border-color: #111827;
+    color: #fff !important;
+}
+
+/* Home: free shipping banner */
+.freeShipping{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 24px;
+    padding: 16px 24px;
+    border: 1.5px solid #ffd6d6;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #fff5f5 0%, #ffffff 55%, #fff5f5 100%);
+}
+.freeShipping__icon{
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #ff5252;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.freeShipping__text{
+    font-size: 14px;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 20px;
+}
+.freeShipping__price{
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    line-height: 1;
+    white-space: nowrap;
+}
+.freeShipping__price span{
+    font-size: 26px;
+    font-weight: 800;
+    color: #ff5252;
+    margin-left: 4px;
+}
+@media (max-width: 767px){
+    .freeShipping__text{ order: 3; width: 100%; }
+}
+
+/* Ad banners: sab ek size ke */
+.adsBanner3 .bannerBox{ aspect-ratio: 4 / 3; }
+.adsBanner3 .bannerBox img{ width: 100%; height: 100%; object-fit: cover; }
+
+/* v3 wide banner: fix patli strip, image kaisi bhi ho */
+.adsBannerWide .bannerBox{ aspect-ratio: 4 / 1; }
+.adsBannerWide .bannerBox img{ width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 767px){ .adsBannerWide .bannerBox{ aspect-ratio: 5 / 2; } }
+
+/* Today's Best Deals header */
+.dealsHead{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px 24px;
+    padding: 14px 20px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #ff5252 0%, #e63946 100%);
+    margin-bottom: 16px;
+}
+.dealsHead__icon{
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+/* Shop by Budget tiles */
+.priceTile{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(0,0,0,0.04);
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+.priceTile:hover{
+    transform: translateY(-3px);
+    box-shadow: 0 14px 28px -14px rgba(17,24,39,0.25);
+}
+.priceTile__thumbs{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+.priceTile__thumb{
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+.priceTile__thumb img{
+    width: 82%;
+    height: 82%;
+    object-fit: contain;
+    transition: transform .35s ease;
+}
+.priceTile:hover .priceTile__thumb img{ transform: scale(1.06); }
+
+/* Today's Best Deals: hamesha 2 row */
+.dealsGrid{
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.dealsGrid > :nth-child(n+5){ display: none; }            /* 2 x 2 */
+@media (min-width: 768px){
+    .dealsGrid{ grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .dealsGrid > :nth-child(n+5){ display: flex; }
+    .dealsGrid > :nth-child(n+7){ display: none; }        /* 2 x 3 */
+}
+@media (min-width: 1024px){
+    .dealsGrid{ grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .dealsGrid > :nth-child(n+7){ display: flex; }
+    .dealsGrid > :nth-child(n+9){ display: none; }        /* 2 x 4 */
+}
+@media (min-width: 1280px){
+    .dealsGrid{ grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .dealsGrid > :nth-child(n+9){ display: flex; }
+    .dealsGrid > :nth-child(n+13){ display: none; }       /* 2 x 6 */
 }

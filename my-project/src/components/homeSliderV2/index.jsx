@@ -23,19 +23,20 @@ const HomeSliderV2 = ({ slides = [] }) => {
         pagination={{ clickable: true }}
         autoplay={{ delay: 2500, disableOnInteraction: false }}
         modules={[EffectFade, Navigation, Pagination, Autoplay]}
-        className="homeSliderV2"
+        className="homeSliderV2 h-full"
       >
         {slides.map((slide) => (
           <SwiperSlide key={slide._id}>
-            <div className='relative w-full overflow-hidden rounded-md item'>
+            <div className='relative w-full h-full overflow-hidden rounded-md item'>
               <img
                 src={slide.images?.[0]}
                 alt={slide.bannerHeading || 'Banner'}
-                className='w-full h-full object-cover'
+                className="absolute inset-0 w-full h-full object-cover"
               />
-              <div className='absolute top-0 -right-[100%] opacity-0 duration-700 transition-all info w-[50%] h-full flex flex-col justify-center items-center p-8 z-50'>
+              <div className='absolute inset-0 z-10 pointer-events-none bg-gradient-to-l from-black/60 via-black/25 to-transparent' />
+              <div className='absolute top-0 -right-[100%] opacity-0 duration-700 transition-all info w-[50%] h-full flex flex-col justify-center items-center p-8 z-50 text-white'>
                 {slide.bannerHeading && (
-                  <h4 className='text-[18px] font-[500] mb-4 w-full text-left relative -right-[100%] opacity-0'>
+                  <h4 className='text-[18px] font-[500] mb-4 w-full text-left text-white/90 relative -right-[100%] opacity-0'>
                     {slide.bannerHeading}
                   </h4>
                 )}

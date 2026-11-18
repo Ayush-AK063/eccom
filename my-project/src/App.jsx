@@ -27,6 +27,10 @@ import Checkout from "./Pages/Checkout";
 import MyAccount from "./Pages/MyAccount";
 import MyAddress from "./Pages/MyAddress";
 import MyList from "./Pages/MyList";
+import Compare from "./Pages/Compare";
+import NotFound from "./Pages/NotFound";
+import CompareTray from "./components/CompareTray";
+import { CompareProvider } from "./context/CompareContext";
 import Orders from "./Pages/Orders";
 import OrderSuccess from "./Pages/Order/success";
 import OrderFailed from "./Pages/Order/failed";
@@ -305,6 +309,7 @@ function App() {
     <>
       <BrowserRouter>
         <MyContext.Provider value={values}>
+        <CompareProvider>
           <Header />
           <Routes>
             <Route path="/" excat={true} element={<Home />} />
@@ -331,11 +336,13 @@ function App() {
             <Route path="/my-account" excat={true} element={<MyAccount />} />
             <Route path="/my-address" excat={true} element={<MyAddress />} />
             <Route path="/my-list" excat={true} element={<MyList />} />
+            <Route path="/compare" element={<Compare />} />
             <Route path="/my-orders" excat={true} element={<Orders />} />
             <Route path="/order/success" element={<OrderSuccess />} />
             <Route path="/order/failed" element={<OrderFailed />} />
             <Route path="/blog/:id" element={<BlogDetails />} />
             <Route path="/search" element={<ProductListing />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
         <Dialog
@@ -360,7 +367,7 @@ function App() {
                 <ProductZoom item={productData} />
               </div>
               <div className="col2 w-[60%] px-8 pr-16 py-8 productContent">
-                <ProductDetailsComponent item={productData} />
+                <ProductDetailsComponent item={productData} compact />
               </div>
             </div>
           </DialogContent>
@@ -370,6 +377,8 @@ function App() {
         <Drawer open={openAddressPanel} onClose={closeAddressPanel} anchor="right" className="addressPanel">
           <AddressPanel />
         </Drawer>
+        <CompareTray />
+        </CompareProvider>
         </MyContext.Provider>
       </BrowserRouter>
 

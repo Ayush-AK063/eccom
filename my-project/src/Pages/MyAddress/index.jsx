@@ -1,164 +1,138 @@
 import React, { useContext, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Dialog from "@mui/material/Dialog";
+import CircularProgress from "@mui/material/CircularProgress";
+import { FiChevronRight, FiEdit2, FiMapPin, FiPhone, FiPlus, FiTrash2 } from "react-icons/fi";
 import AccountSidebar from "../../components/AccountSidebar";
-import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from "@mui/material";
 import { MyContext } from "../../App";
-import { useNavigate } from "react-router-dom";
 import { deleteData } from "../../utils/api";
-import { FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
-import { IoCloseSharp } from "react-icons/io5";
+import "../MyAccount/style.css";
+import "./style.css";
 
 const MyAddress = () => {
-    const [isLoading3, setIsLoading3] = useState(false);
+  const context = useContext(MyContext);
+  const history = useNavigate();
+  const addressList = context?.addressList || [];
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-    // Address Action States
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [viewData, setViewData] = useState(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [deleteId, setDeleteId] = useState(null);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (!localStorage.getItem("accesstoken")) history("/login");
+  }, [context?.isLogin, history]);
 
-    const context = useContext(MyContext);
-    const history = useNavigate();
-    const addressList = context?.addressList || [];
+  // Default pehle
+  const sorted = [...addressList].sort((a, b) => Number(!!b.isDefault) - Number(!!a.isDefault));
 
-    useEffect(() => {
-        const token = localStorage.getItem("accesstoken");
-        if (!token) {
-            history("/");
-        }
-    }, [context?.isLogin, history]);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const res = await deleteData(`/api/address/${deleteTarget._id}`);
+    setDeleting(false);
+    if (res?.error === false) {
+      context.openAlertBox("success", "Address deleted");
+      setDeleteTarget(null);
+      context.getAddresses();
+    } else {
+      context.openAlertBox("error", res?.message || "Failed to delete address");
+    }
+  };
 
-    const handleEditBtnClick = (addr) => {
-        context.openAddressPanelFor(addr);
-    };
+  return (
+    <section className="bg-[#fafafa] py-6 pb-14">
+      <div className="container">
+        <nav className="flex items-center gap-1.5 text-[13px] text-gray-500 mb-4" aria-label="breadcrumb">
+          <Link to="/" className="hover:text-primary">Home</Link>
+          <FiChevronRight className="text-gray-300" />
+          <Link to="/my-account" className="hover:text-primary">My Account</Link>
+          <FiChevronRight className="text-gray-300" />
+          <span className="text-gray-900">Addresses</span>
+        </nav>
 
-    const handleDeleteBtnClick = (id) => {
-        setDeleteId(id);
-        setIsDeleteModalOpen(true);
-    };
+        <div className="accGrid">
+          <AccountSidebar />
 
-    const handleViewBtnClick = (addr) => {
-        setViewData(addr);
-        setIsViewModalOpen(true);
-    };
-
-    const confirmDeleteAddress = () => {
-        setIsLoading3(true);
-        deleteData(`/api/address/${deleteId}`).then((res) => {
-            setIsLoading3(false);
-            if (res?.error === false) {
-                context.openAlertBox("success", "Address deleted successfully");
-                setIsDeleteModalOpen(false);
-                setDeleteId(null);
-                context.getAddresses();
-            } else {
-                context.openAlertBox("error", res?.message || "Failed to delete address");
-            }
-        });
-    };
-
-    return (
-        <section className="w-full py-10">
-            <div className="container flex gap-5">
-                <div className="col1 w-[20%]">
-                    <AccountSidebar />
-                </div>
-
-                <div className="col2 w-[80%]">
-                    <div className="p-5 bg-white rounded-md shadow-md card mb-5">
-                        <div className="flex items-center justify-between pb-3">
-                            <h2 className="pb-0 text-[20px] font-[600]">My Addresses</h2>
-                            <Button
-                                className="btn-blue btn-sm"
-                                onClick={() => context.openAddressPanelFor(null)}
-                            >
-                                Add Address
-                            </Button>
-                        </div>
-                        <hr />
-                        <br />
-
-
-                        {addressList?.length > 0 ? (
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                                {addressList.map((addr, index) => (
-                                    <div key={index} className="border border-gray-200 rounded-md p-5 shadow-sm bg-gray-50 flex flex-col justify-between">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div className="flex items-center gap-2">
-                                                    <h3 className="text-[16px] font-[600]">{addr.name}</h3>
-                                                    <span className="bg-gray-200 text-gray-700 text-[11px] font-[600] px-2 py-[2px] rounded uppercase tracking-wider">{addr.addressType || "Home"}</span>
-                                                    {addr.isDefault && (
-                                                        <span className="bg-blue-100 text-blue-800 text-[11px] font-[600] px-2 py-[2px] rounded uppercase tracking-wider">Default</span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#2563eb', bgcolor: '#eff6ff' } }} onClick={() => handleViewBtnClick(addr)}><FiEye className="text-[18px]" /></IconButton>
-                                                    <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#059669', bgcolor: '#ecfdf5' } }} onClick={() => handleEditBtnClick(addr)}><FiEdit className="text-[18px]" /></IconButton>
-                                                    <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#dc2626', bgcolor: '#fef2f2' } }} onClick={() => handleDeleteBtnClick(addr._id)}><FiTrash2 className="text-[18px]" /></IconButton>
-                                                </div>
-                                            </div>
-                                            <p className="text-[14px] text-gray-700 mb-1">
-                                                <span className="font-[500] text-gray-900">Mobile:</span> {addr.mobile}
-                                            </p>
-                                            <p className="text-[14px] text-gray-700 leading-relaxed max-w-[90%]">
-                                                {addr.flatHouse}, {addr.areaStreet}<br />
-                                                {addr.landmark ? `${addr.landmark}, ` : ""}
-                                                {addr.townCity}, {addr.state} - {addr.pincode}<br />
-                                                {addr.country}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-gray-500 text-center py-5">No addresses saved yet.</p>
-                        )}
-                    </div>
-                </div>
+          <div className="accCard min-w-0">
+            <div className="accCard__head">
+              <div>
+                <h2>My Addresses</h2>
+                <div className="text-[13px] text-gray-500 mt-0.5">Manage where your orders are delivered.</div>
+              </div>
+              {addressList.length > 0 && (
+                <button type="button" onClick={() => context.openAddressPanelFor(null)} className="accBtn accBtn--dark !min-w-0">
+                  <FiPlus /> Add address
+                </button>
+              )}
             </div>
 
-            {/* View Modal */}
-            <Dialog open={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle className="flex items-center justify-between">
-                    <span className="font-[600]">View Address</span>
-                    <IconButton onClick={() => setIsViewModalOpen(false)}><IoCloseSharp /></IconButton>
-                </DialogTitle>
-                <DialogContent dividers>
-                    {viewData && (
-                        <div className="flex flex-col gap-3">
-                            <span className="inline-block mb-2 mr-2 bg-gray-200 text-gray-700 text-[11px] font-[600] px-2 py-[2px] rounded uppercase tracking-wider">{viewData.addressType || "Home"}</span>
-                            {viewData.isDefault && (
-                                <div className="mb-1"><span className="bg-blue-100 text-blue-800 text-[12px] font-[600] px-2 py-1 rounded uppercase tracking-wider">Default Address</span></div>
-                            )}
-                            <p className="text-[15px]"><b className="font-[600]">Name:</b> {viewData.name}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Mobile:</b> {viewData.mobile}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Flat/House No:</b> {viewData.flatHouse}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Street/Area:</b> {viewData.areaStreet}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Landmark:</b> {viewData.landmark || "N/A"}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Town/City:</b> {viewData.townCity}</p>
-                            <p className="text-[15px]"><b className="font-[600]">State:</b> {viewData.state}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Pincode:</b> {viewData.pincode}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Country:</b> {viewData.country}</p>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <div className="p-5">
+              {addressList.length === 0 ? (
+                <div className="flex flex-col items-center text-center py-12">
+                  <span className="w-[72px] h-[72px] rounded-full bg-[#fff1f0] text-primary text-[30px] flex items-center justify-center"><FiMapPin /></span>
+                  <div className="mt-4 text-[17px] font-[700] text-gray-900">No saved addresses</div>
+                  <div className="mt-1 text-[13px] text-gray-500">Add an address for faster checkout.</div>
+                  <button type="button" onClick={() => context.openAddressPanelFor(null)} className="mt-5 accBtn accBtn--dark">
+                    <FiPlus /> Add address
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sorted.map((a) => (
+                    <div key={a._id} className={`addrCard ${a.isDefault ? "is-default" : ""}`}>
+                      <div className="flex items-center flex-wrap gap-1.5">
+                        <span className="text-[15px] font-[700] text-gray-900">{a.name}</span>
+                        <span className="addrTag">{a.addressType || "Home"}</span>
+                        {a.isDefault && <span className="addrTag addrTag--default">Default</span>}
+                      </div>
+                      <div className="mt-2.5 text-[13px] text-gray-600 leading-[21px]">
+                        {[a.flatHouse, a.areaStreet].filter(Boolean).join(", ")}
+                        {a.landmark && <><br />Near {a.landmark}</>}
+                        <br />{a.townCity}, {a.state} – {a.pincode}
+                        {a.country && <><br />{a.country}</>}
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5 text-[13px] font-[500] text-gray-800">
+                        <FiPhone className="text-gray-400" /> {a.mobile}
+                      </div>
 
-            {/* Delete Modal */}
-            <Dialog open={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
-                <DialogTitle>Confirm Delete</DialogTitle>
-                <DialogContent>
-                    Are you sure you want to delete this address? This action cannot be undone.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsDeleteModalOpen(false)} color="inherit">Cancel</Button>
-                    <Button onClick={confirmDeleteAddress} color="error" variant="contained" disabled={isLoading3}>
-                        {isLoading3 ? <CircularProgress size={20} color="inherit" /> : "Delete"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </section>
-    );
+                      <div className="addrCard__actions">
+                        <button type="button" onClick={() => context.openAddressPanelFor(a)}><FiEdit2 /> Edit</button>
+                        <span className="w-px h-4 bg-gray-200" />
+                        <button type="button" className="hover:!text-primary" onClick={() => setDeleteTarget(a)}><FiTrash2 /> Delete</button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button type="button" onClick={() => context.openAddressPanelFor(null)} className="addrCard addrCard--add">
+                    <span className="w-[44px] h-[44px] rounded-full bg-gray-100 flex items-center justify-center text-[20px]"><FiPlus /></span>
+                    <span className="text-[13px] font-[600]">Add a new address</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete confirm */}
+      <Dialog open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} PaperProps={{ sx: { borderRadius: "6px", maxWidth: 400 } }}>
+        <div className="p-6">
+          <span className="w-[48px] h-[48px] rounded-full bg-[#fff1f0] text-primary text-[20px] flex items-center justify-center"><FiTrash2 /></span>
+          <div className="mt-4 text-[17px] font-[700] text-gray-900">Delete this address?</div>
+          {deleteTarget && (
+            <div className="mt-1.5 text-[13px] text-gray-600 leading-[20px]">
+              <b className="text-gray-900">{deleteTarget.name}</b> · {deleteTarget.townCity}, {deleteTarget.state} – {deleteTarget.pincode}. This can’t be undone.
+            </div>
+          )}
+          <div className="mt-6 flex justify-end gap-3">
+            <button type="button" disabled={deleting} onClick={() => setDeleteTarget(null)} className="accBtn accBtn--light">Cancel</button>
+            <button type="button" disabled={deleting} onClick={confirmDelete} className="accBtn !bg-[#dc2626] !text-white hover:!bg-[#b91c1c]">
+              {deleting ? <CircularProgress size={16} color="inherit" /> : "Delete"}
+            </button>
+          </div>
+        </div>
+      </Dialog>
+    </section>
+  );
 };
 
 export default MyAddress;

@@ -1,0 +1,175 @@
+.pInfo__price {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #f1f2f4;
+}
+
+.pInfo__off {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    background: #fff1f0;
+    color: #e03e3e;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.pInfo__opt {
+    min-width: 46px;
+    height: 40px;
+    padding: 0 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+}
+
+.pInfo__opt:hover {
+    border-color: #111827;
+}
+
+.pInfo__opt.is-active {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+}
+
+.pInfo__opt.is-error {
+    border-color: #fca5a5;
+}
+
+.pInfo__buy {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 22px;
+}
+
+.pInfo__qty {
+    display: flex;
+    align-items: center;
+    height: 48px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.pInfo__qty button {
+    width: 40px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #111827;
+    font-size: 15px;
+    transition: background 0.15s ease;
+}
+
+.pInfo__qty button:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+.pInfo__qty button:disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.pInfo__qty span {
+    min-width: 32px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+}
+
+/* Bada Add to Cart */
+.pInfo__cart .btn-org,
+.pInfo__cart > div {
+    height: 48px !important;
+    border-radius: 6px !important;
+}
+
+.pInfo__cart .btn-org {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    white-space: nowrap;
+}
+
+.pInfo__wish {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    border: 1.5px solid #e5e7eb;
+    background: #fff;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.pInfo__wish:hover {
+    border-color: #ff5252;
+    color: #ff5252;
+}
+
+.pInfo__wish.is-active {
+    border-color: #ff5252;
+    background: #fff1f0;
+    color: #ff5252;
+}
+
+.pInfo__compare > span {
+    font-size: 13px !important;
+    color: #4b5563;
+    width: fit-content;
+}
+
+.pInfo__compare > span svg {
+    font-size: 15px !important;
+}
+
+.pInfo__perks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 22px;
+    border: 1px solid #f1f2f4;
+    border-radius: 6px;
+}
+
+.pInfo__perk {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+}
+
+.pInfo__perk + .pInfo__perk {
+    border-left: 1px solid #f1f2f4;
+}
+
+.pInfo__perk > svg {
+    flex-shrink: 0;
+    font-size: 22px;
+    color: #ff5252;
+}
+
+@media (max-width: 639px) {
+    .pInfo__perks {
+        grid-template-columns: 1fr;
+    }
+
+    .pInfo__perk + .pInfo__perk {
+        border-left: 0;
+        border-top: 1px solid #f1f2f4;
+    }
+}

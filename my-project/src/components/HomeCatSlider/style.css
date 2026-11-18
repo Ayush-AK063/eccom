@@ -1,0 +1,98 @@
+/* hover lift/shadow kat na jaye */
+.catSwiper {
+    padding: 4px 2px 8px !important;
+}
+
+/* Card */
+.catCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+}
+
+.catMedia {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: transform 0.35s cubic-bezier(.2, .8, .2, 1), box-shadow 0.35s ease;
+}
+
+.catMedia img {
+    width: 72%;
+    height: 72%;
+    object-fit: contain;
+    mix-blend-mode: multiply; /* white background wali images tint mein ghul jati hain */
+    transition: transform 0.45s cubic-bezier(.2, .8, .2, 1);
+}
+
+.catCard:hover .catMedia {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -10px rgba(17, 24, 39, 0.22);
+}
+
+.catCard:hover .catMedia img {
+    transform: scale(1.08);
+}
+
+.catName {
+    margin-top: 8px;
+    width: 100%;
+    padding: 0 4px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    text-transform: capitalize;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s ease;
+}
+
+.catCard:hover .catName {
+    color: #ff5252;
+}
+
+/* View All card */
+.catMediaAll {
+    background: #fff;
+    border: 1.5px dashed #e5e7eb;
+    color: #9ca3af;
+}
+
+.catCard:hover .catMediaAll {
+    border-color: #ff5252;
+    color: #ff5252;
+    background: #fff5f5;
+}
+
+/* Header nav buttons */
+.catNav {
+    width: 38px;
+    height: 38px;
+    border-radius: 9999px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.catNav:hover:not(:disabled) {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+}
+
+.catNav:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}

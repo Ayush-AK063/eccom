@@ -9,6 +9,9 @@ import { useState, useContext } from 'react';
 import { MyContext } from '../../../App';
 import './style.css'
 
+// Menu mein itni categories; baaki 'More' dropdown mein (menu kabhi do line mein na toote)
+const VISIBLE = 5
+
 const Navigation = () => {
     const [isopenCatPanel, setIsOpenCatPanel] = useState(false)
     const context = useContext(MyContext)
@@ -30,7 +33,7 @@ const Navigation = () => {
                 </Button>
             </div>
             <div className='col_2 w-[50%]'>
-                <ul className='flex items-center gap-3 nav'>
+                <ul className='flex items-center gap-1 nav'>
                     <li className='list-none'>
                         <Link to='/' className='text-[14px] font-[500]'>
                             <Button className='link transition !font-[500] !text-[rgba(0,0,0,0.8)] hover:!text-[#ff5252] !py-4'>
@@ -38,7 +41,7 @@ const Navigation = () => {
                             </Button>
                         </Link>
                     </li>
-                    {context?.catData?.slice(0, 7).map((cat) => (
+                    {context?.catData?.slice(0, VISIBLE).map((cat) => (
                         <li className='relative list-none' key={cat._id}>
                             <Link to={`/productListing?catId=${cat._id}`} className='link transition text-[14px] font-[500]'>
                                 <Button className='link transition !font-[500] !text-[rgba(0,0,0,0.8)] hover:!text-[#ff5252] !py-4'>
@@ -79,10 +82,31 @@ const Navigation = () => {
                             )}
                         </li>
                     ))}
+
+                    {context?.catData?.length > VISIBLE && (
+                        <li className='relative list-none'>
+                            <Button className='link transition !font-[500] !text-[rgba(0,0,0,0.8)] hover:!text-[#ff5252] !py-4 gap-1'>
+                                More <FaAngleDown className='text-[11px]' />
+                            </Button>
+                            <div className='submenu absolute top-[120%] right-0 min-w-[180px] bg-white shadow-md opacity-0 transition-all'>
+                                <ul>
+                                    {context.catData.slice(VISIBLE).map((cat) => (
+                                        <li className='w-full list-none' key={cat._id}>
+                                            <Link to={`/productListing?catId=${cat._id}`} className='w-full'>
+                                                <Button className='!text-[rgba(0,0,0,0.8)] w-full !text-left !justify-start !rounded-none'>
+                                                    {cat.name}
+                                                </Button>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </li>
+                    )}
                 </ul>
             </div>
-            <div className='col_3 w-[25%]'>
-                <p className='text-[13px] font-[500] flex items-center gap-3 mb-0 mt-0'>
+            <div className='col_3 w-[25%] flex justify-end'>
+                <p className='text-[13px] font-[500] flex items-center gap-2 mb-0 mt-0 whitespace-nowrap'>
                     <IoRocketOutline className='text-[18px] font-[500]'/>
                     Free Delivery above 999
                 </p>

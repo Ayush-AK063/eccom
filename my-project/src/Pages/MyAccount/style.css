@@ -1,0 +1,137 @@
+/* Account pages layout (sidebar + content) */
+.accGrid {
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 1023px) {
+    .accGrid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+}
+
+.accCard {
+    background: #fff;
+    border: 1px solid #eef0f2;
+    border-radius: 6px;
+}
+
+.accCard__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f2f4;
+}
+
+.accCard__head h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.accStat {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: #fff;
+    border: 1px solid #eef0f2;
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.accStat:hover {
+    border-color: #e5e7eb;
+    box-shadow: 0 8px 18px -12px rgba(17, 24, 39, 0.2);
+}
+
+.accStat__icon {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #fff1f0;
+    color: #ff5252;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.accLabel {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.accInput {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+    color: #111827;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.accInput:focus {
+    border-color: #111827;
+    box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06);
+}
+
+.accInput:disabled {
+    background: #f9fafb;
+}
+
+.accInput.is-readonly {
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.accBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 120px;
+    height: 40px;
+    padding: 0 18px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.accBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.accBtn--dark {
+    background: #111827;
+    color: #fff;
+}
+
+.accBtn--dark:hover:not(:disabled) {
+    background: #ff5252;
+}
+
+.accBtn--light {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    color: #111827;
+}
+
+.accBtn--light:hover:not(:disabled) {
+    border-color: #111827;
+}

@@ -1,0 +1,73 @@
+.addrCard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.addrCard:hover {
+    border-color: #d1d5db;
+    box-shadow: 0 8px 18px -14px rgba(17, 24, 39, 0.25);
+}
+
+.addrCard.is-default {
+    border-color: #111827;
+}
+
+.addrCard__actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: auto;
+    padding-top: 14px;
+}
+
+.addrCard__actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    transition: color 0.15s ease;
+}
+
+.addrCard__actions button:hover {
+    color: #111827;
+}
+
+.addrCard--add {
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 190px;
+    border-style: dashed;
+    color: #6b7280;
+}
+
+.addrCard--add:hover {
+    border-color: #ff5252;
+    color: #ff5252;
+    background: #fff7f7;
+}
+
+.addrTag {
+    display: inline-flex;
+    padding: 1px 8px;
+    border-radius: 4px;
+    background: #f3f4f6;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4b5563;
+    text-transform: capitalize;
+}
+
+.addrTag--default {
+    background: #111827;
+    color: #fff;
+}

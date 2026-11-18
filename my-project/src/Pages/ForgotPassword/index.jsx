@@ -1,151 +1,133 @@
-import React from "react";
-import TextField from "@mui/material/TextField";
-import { Button, CircularProgress } from "@mui/material";
-import { FaRegEye } from "react-icons/fa6";
-import { FaRegEyeSlash } from "react-icons/fa6";
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FcGoogle } from "react-icons/fc";
+import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import CircularProgress from "@mui/material/CircularProgress";
+import { FaRegEye, FaRegEyeSlash } from "react-icons/fa6";
+import { FiArrowLeft, FiCheck, FiMail } from "react-icons/fi";
+import { Link } from "react-router-dom";
+import AuthLayout, { AuthField } from "../../components/AuthLayout";
 import { MyContext } from "../../App";
-import { useContext } from "react";
 import { postData } from "../../utils/api";
 
+// Step 1: email -> OTP bhejo -> /verify
+// Step 2 (OTP verify ke baad, otpVerified flag): naya password set karo
 const ForgotPassword = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isShowPassword, setIsShowPassword] = useState(false);
-  const [isShowPassword2, setIsShowPassword2] = useState(false);
-  const [formFields, setFormFields] = useState({
-    email: localStorage.getItem('userEmail'),
-    newPassword: "",
-    confirmPassword: "",
-  });
-
   const context = useContext(MyContext);
   const history = useNavigate();
+  const verified = localStorage.getItem("actionType") === "forgot-password" && localStorage.getItem("otpVerified") === "1";
 
-  const onChangeInput = (e) => {
-    const { name, value } = e.target;
-    setFormFields(() => {
-      return {
-        ...formFields,
-        [name]: value,
-      };
-    });
-  };
+  const [email, setEmail] = useState(localStorage.getItem("userEmail") || "");
+  const [pw, setPw] = useState({ newPassword: "", confirmPassword: "" });
+  const [show, setShow] = useState({ a: false, b: false });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const sendOtp = async (e) => {
     e.preventDefault();
-
-    setIsLoading(true);
-
-    if (formFields.newPassword === "") {
-      context.openAlertBox("error", "newPassword required");
-      setIsLoading(false);
-      return false;
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return context.openAlertBox("error", "Please enter a valid email address");
+    setLoading(true);
+    const res = await postData("/api/user/forgot-password", { email: email.trim() });
+    setLoading(false);
+    if (res?.error === false) {
+      localStorage.setItem("userEmail", email.trim());
+      localStorage.setItem("actionType", "forgot-password");
+      localStorage.removeItem("otpVerified");
+      context.openAlertBox("success", res?.message || "We sent a code to your email");
+      history("/verify");
+    } else {
+      context.openAlertBox("error", res?.message || "Could not send the code");
     }
-
-    if (formFields.confirmPassword === "") {
-      context.openAlertBox("error", "confirmPassword required");
-      setIsLoading(false);
-      return false;
-    }
-
-    if (formFields.newPassword !== formFields.confirmPassword) {
-      context.openAlertBox(
-        "error",
-        "newPassword & confirmPassword must be same"
-      );
-      setIsLoading(false);
-      return false;
-    }
-
-    postData("/api/user/reset-password", formFields).then((res) => {
-      if (!res.error) {
-        context.openAlertBox("success", res?.message);
-        localStorage.removeItem("userEmail");
-        localStorage.removeItem("actionType");
-        history("/login");
-      } else {
-        context.openAlertBox("error", res?.message);
-        setIsLoading(false);
-      }
-    });
   };
 
+  const resetPassword = async (e) => {
+    e.preventDefault();
+    if (pw.newPassword.length < 6) return context.openAlertBox("error", "Password must be at least 6 characters");
+    if (pw.newPassword !== pw.confirmPassword) return context.openAlertBox("error", "Passwords do not match");
+    setLoading(true);
+    const res = await postData("/api/user/reset-password", { email: localStorage.getItem("userEmail"), ...pw });
+    setLoading(false);
+    if (!res?.error) {
+      context.openAlertBox("success", res?.message || "Password updated. Please log in.");
+      ["userEmail", "actionType", "otpVerified"].forEach((k) => localStorage.removeItem(k));
+      history("/login");
+    } else {
+      context.openAlertBox("error", res?.message || "Could not reset password");
+    }
+  };
+
+  const strength = pw.newPassword.length === 0 ? 0 : pw.newPassword.length < 6 ? 1 : /[A-Z]/.test(pw.newPassword) && /\d/.test(pw.newPassword) && pw.newPassword.length >= 8 ? 3 : 2;
+  const match = pw.confirmPassword && pw.newPassword === pw.confirmPassword;
+
+  if (verified) {
+    return (
+      <AuthLayout
+        title="Set a new password"
+        subtitle={<>For <b className="text-gray-900">{localStorage.getItem("userEmail")}</b></>}
+        panelTitle="Almost there."
+        panelText="Choose a strong password you haven't used before. You'll use it to log in from now on."
+      >
+        <form className="flex flex-col gap-4" onSubmit={resetPassword} noValidate>
+          <AuthField label="New password">
+            <div className="relative">
+              <input type={show.a ? "text" : "password"} value={pw.newPassword} disabled={loading} autoComplete="new-password"
+                onChange={(e) => setPw((p) => ({ ...p, newPassword: e.target.value }))} placeholder="At least 6 characters" className="authInput pr-11" />
+              <button type="button" className="authEye" aria-label="Toggle password" onClick={() => setShow((s) => ({ ...s, a: !s.a }))}>
+                {show.a ? <FaRegEye /> : <FaRegEyeSlash />}
+              </button>
+            </div>
+            <span className="authStrength" data-level={strength}><i /><i /><i /></span>
+            <span className="block mt-1 text-[11px] text-gray-400">
+              {["Use at least 6 characters.", "Too short — use at least 6 characters.", "Good — add a capital letter and a number to make it stronger.", "Strong password."][strength]}
+            </span>
+          </AuthField>
+
+          <AuthField label="Confirm new password">
+            <div className="relative">
+              <input type={show.b ? "text" : "password"} value={pw.confirmPassword} disabled={loading} autoComplete="new-password"
+                onChange={(e) => setPw((p) => ({ ...p, confirmPassword: e.target.value }))} placeholder="Re-enter new password" className="authInput pr-11" />
+              <button type="button" className="authEye" aria-label="Toggle password" onClick={() => setShow((s) => ({ ...s, b: !s.b }))}>
+                {show.b ? <FaRegEye /> : <FaRegEyeSlash />}
+              </button>
+            </div>
+            {pw.confirmPassword && (
+              <span className={`flex items-center gap-1 mt-1.5 text-[11px] font-[600] ${match ? "text-[#15803d]" : "text-red-500"}`}>
+                {match ? <><FiCheck /> Passwords match</> : "Passwords don't match"}
+              </span>
+            )}
+          </AuthField>
+
+          <button type="submit" disabled={loading} className="authSubmit mt-2">
+            {loading ? <CircularProgress size={20} color="inherit" /> : "Update password"}
+          </button>
+        </form>
+        <Link to="/login" className="mt-6 flex items-center justify-center gap-1.5 text-[13px] font-[600] text-gray-600 hover:text-primary">
+          <FiArrowLeft /> Back to login
+        </Link>
+      </AuthLayout>
+    );
+  }
 
   return (
-    <section className="py-10 section">
-      <div className="container">
-        <div className="shadow-md w-[400px] m-auto rounded-md bg-white p-5 px-10 card">
-          <h3 className="text-center text-[18px] text-black">
-            Forgot Password
-          </h3>
-
-          <form action="" className="w-full mt-5" onSubmit={handleSubmit}>
-            <div className="relative w-full mb-6 form-group">
-              <TextField
-                type={isShowPassword === false ? "password" : "text"}
-                id="password"
-                label="New Password"
-                variant="outlined"
-                className="w-full"
-                name="newPassword"
-                value={formFields.newPassword}
-                disabled={isLoading === true ? true : false}
-                onChange={onChangeInput}
-              />
-
-              <Button
-                className="!absolute top-[10px] right-[10px] z-50 !w-[35px] !h-[35px] !min-w-[35px] !rounded-full !text-black"
-                onClick={() => setIsShowPassword(!isShowPassword)}
-              >
-                {isShowPassword === false ? (
-                  <FaRegEyeSlash className="text-[20px] opacity-75" />
-                ) : (
-                  <FaRegEye className="text-[20px] opacity-75" />
-                )}
-              </Button>
-            </div>
-            <div className="relative w-full mb-6 form-group">
-              <TextField
-                type={isShowPassword2 === false ? "password" : "text"}
-                id="confirm_password"
-                label="Confirm Password"
-                variant="outlined"
-                className="w-full"
-                name="confirmPassword"
-                value={formFields.confirmPassword}
-                disabled={isLoading === true ? true : false}
-                onChange={onChangeInput}
-              />
-              <Button
-                className="!absolute top-[10px] right-[10px] z-50 !w-[35px] !h-[35px] !min-w-[35px] !rounded-full !text-black"
-                onClick={() => setIsShowPassword2(!isShowPassword2)}
-              >
-                {isShowPassword2 === false ? (
-                  <FaRegEyeSlash className="text-[20px] opacity-75" />
-                ) : (
-                  <FaRegEye className="text-[20px] opacity-75" />
-                )}
-              </Button>
-            </div>
-
-            <div className="flex items-center w-full mt-2 mb-2">
-              <Button
-                type="submit"
-                className="w-full btn-lg btn-org flex gap-3"
-              >
-                {isLoading === true ? (
-                  <CircularProgress color="inherit" />
-                ) : (
-                  "Change Password"
-                )}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </section>
+    <AuthLayout
+      title="Forgot your password?"
+      subtitle="Enter the email linked to your account and we'll send you a 6-digit code."
+      panelTitle="It happens to the best of us."
+      panelText="We'll help you get back into your account in a minute."
+    >
+      <form className="flex flex-col gap-4" onSubmit={sendOtp} noValidate>
+        <AuthField label="Email address">
+          <div className="relative">
+            <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading}
+              autoComplete="email" placeholder="you@example.com" className="authInput has-icon" autoFocus />
+          </div>
+        </AuthField>
+        <button type="submit" disabled={loading} className="authSubmit mt-2">
+          {loading ? <CircularProgress size={20} color="inherit" /> : "Send code"}
+        </button>
+      </form>
+      <Link to="/login" className="mt-6 flex items-center justify-center gap-1.5 text-[13px] font-[600] text-gray-600 hover:text-primary">
+        <FiArrowLeft /> Back to login
+      </Link>
+    </AuthLayout>
   );
 };
 

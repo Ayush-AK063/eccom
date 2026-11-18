@@ -1,41 +1,39 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import Rating from '@mui/material/Rating';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link } from 'react-router-dom';
 import { postData } from '../../utils/api';
 import { MyContext } from '../../App';
 
-const Reviews = ({ productId, reviews, onReviewAdded }) => {
+const INITIAL = 5;
 
+const Reviews = ({ productId, reviews, onReviewAdded }) => {
     const context = useContext(MyContext)
     const [reviewText, setReviewText] = useState('')
     const [rating, setRating] = useState(0)
     const [isLoading, setIsLoading] = useState(false)
+    const [showAll, setShowAll] = useState(false)
 
-    // Agar is user ka review pehle se hai to form mein wahi dikhao (dobara submit = update)
+    const mine = reviews.find((r) => r.userId === context?.userData?._id)
+
+    // User ka review pehle se hai to form mein wahi (dobara submit = update)
     useEffect(() => {
-        const mine = reviews.find((r) => r.userId === context?.userData?._id)
         setReviewText(mine?.review || '')
         setRating(mine?.rating || 0)
-    }, [reviews, context?.userData?._id])
+    }, [mine?.review, mine?.rating])
+
+    // Summary: average + har star ka count
+    const summary = useMemo(() => {
+        const counts = [5, 4, 3, 2, 1].map((star) => ({ star, count: reviews.filter((r) => Math.round(r.rating) === star).length }))
+        const avg = reviews.length ? reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length : 0
+        return { counts, avg }
+    }, [reviews])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
-
-        if (!context?.isLogin) {
-            context.openAlertBox('error', 'Please login to add a review')
-            return
-        }
-        if (reviewText.trim() === '') {
-            context.openAlertBox('error', 'Please write a review')
-            return
-        }
-        if (!rating) {
-            context.openAlertBox('error', 'Please select a rating')
-            return
-        }
+        if (!context?.isLogin) return context.openAlertBox('error', 'Please login to add a review')
+        if (!rating) return context.openAlertBox('error', 'Please select a rating')
+        if (reviewText.trim() === '') return context.openAlertBox('error', 'Please write a review')
 
         setIsLoading(true)
         const res = await postData('/api/review/add', { productId, review: reviewText, rating })
@@ -49,74 +47,100 @@ const Reviews = ({ productId, reviews, onReviewAdded }) => {
         }
     }
 
+    const list = showAll ? reviews : reviews.slice(0, INITIAL)
+    const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '')
+
     return (
-        <div className='w-full productReviewContainer'>
-            <h2 className='text-[18px]'>Customer questions & answers</h2>
-
-            {reviews.length === 0 ? (
-                <p className='mt-5 text-[14px] text-[rgba(0,0,0,0.6)]'>No reviews yet. Be the first to review this product.</p>
-            ) : (
-                <div className='reviewScroll w-full scroll max-h-[300px] overflow-y-scroll overflow-x-hidden mt-5 pr-5'>
-                    {reviews.map((item) => (
-                        <div key={item._id} className='flex items-center justify-between w-full pb-5 pt-5 border-b border-[rgba(0,0,0,0.1)] review'>
-                            <div className='info w-[60%] flex items-center gap-3'>
-                                <div className='img w-[80px] h-[80px] min-w-[80px] overflow-hidden rounded-full bg-[#f1f1f1] flex items-center justify-center'>
-                                    {item.image ? (
-                                        <img src={item.image} alt={item.userName} className='object-cover w-full h-full' />
-                                    ) : (
-                                        <span className='text-[28px] font-[600] text-[rgba(0,0,0,0.6)] uppercase'>
-                                            {item.userName?.charAt(0) || 'U'}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div className='w-[80%]'>
-                                    <h4 className='text-[16px]'>{item.userName || 'User'}</h4>
-                                    <h5 className='text-[13px] mb-0'>{item.createdAt?.split('T')[0]}</h5>
-                                    <p className='mt-0 mb-0'>{item.review}</p>
-                                </div>
-                            </div>
-
-                            <Rating name={`review-${item._id}`} value={item.rating} readOnly />
+        <div className='grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-10'>
+            {/* Left: summary + form */}
+            <div className='flex flex-col gap-6'>
+                <div className='p-5 rounded-md border border-gray-100 bg-[#fafafa]'>
+                    <div className='flex items-end gap-3'>
+                        <span className='text-[44px] font-[800] text-gray-900 leading-none'>{summary.avg ? summary.avg.toFixed(1) : '—'}</span>
+                        <div className='pb-1'>
+                            <Rating value={summary.avg} readOnly precision={0.1} size='small' />
+                            <div className='text-[12px] text-gray-500'>Based on {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}</div>
                         </div>
-                    ))}
+                    </div>
+                    <div className='mt-4 flex flex-col gap-2'>
+                        {summary.counts.map(({ star, count }) => {
+                            const pct = reviews.length ? Math.round((count / reviews.length) * 100) : 0
+                            return (
+                                <div key={star} className='flex items-center gap-3 text-[12px]'>
+                                    <span className='w-[34px] text-gray-600 font-[500]'>{star} ★</span>
+                                    <span className='flex-1 h-[6px] rounded-full bg-gray-200 overflow-hidden'>
+                                        <span className='block h-full rounded-full bg-[#f59e0b]' style={{ width: `${pct}%` }} />
+                                    </span>
+                                    <span className='w-[28px] text-right text-gray-500'>{count}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
-            )}
 
-            <br />
-
-            <div className='reviewForm bg-[#f1f1f1] p-4 rounded-md'>
-                <h2 className='text-[18px]'>
-                    Add a Review
-                </h2>
-
-                {!context?.isLogin ? (
-                    <p className='mt-3 text-[14px]'>
-                        Please <Link to='/login' className='link text-primary font-[600]'>login</Link> to write a review.
-                    </p>
-                ) : (
-                    <form className='w-full mt-5' onSubmit={handleSubmit}>
-                        <TextField
-                            id="outlined-multiline-static"
-                            label="write a review..."
-                            multiline
-                            rows={5}
-                            className='w-full'
-                            value={reviewText}
-                            onChange={(e) => setReviewText(e.target.value)}
-                        />
-
-                        <br /><br />
-
-                        <Rating name="add-review-rating" value={rating} size='large'
-                            onChange={(e, value) => setRating(value || 0)} />
-
-                        <div className='flex items-center mt-5'>
-                            <Button type='submit' className='btn-org' disabled={isLoading}>
-                                {isLoading ? <CircularProgress size={20} color='inherit' /> : 'Submit Review'}
-                            </Button>
+                <div className='p-5 rounded-md border border-gray-100'>
+                    <h3 className='text-[15px] font-[700] text-gray-900'>{mine ? 'Update your review' : 'Write a review'}</h3>
+                    {!context?.isLogin ? (
+                        <div className='mt-2 text-[13px] text-gray-600 leading-[20px]'>
+                            Please <Link to='/login' className='text-primary font-[600] hover:underline'>login</Link> to share your thoughts on this product.
                         </div>
-                    </form>
+                    ) : (
+                        <form className='mt-3 flex flex-col gap-3' onSubmit={handleSubmit}>
+                            <div>
+                                <div className='text-[12px] font-[600] text-gray-600 mb-1'>Your rating</div>
+                                <Rating value={rating} onChange={(e, v) => setRating(v || 0)} />
+                            </div>
+                            <textarea
+                                rows={4}
+                                value={reviewText}
+                                onChange={(e) => setReviewText(e.target.value)}
+                                placeholder='What did you like or dislike?'
+                                className='w-full p-3 text-[14px] leading-[22px] border border-gray-200 rounded-md outline-none resize-none focus:border-gray-900'
+                            />
+                            <button type='submit' disabled={isLoading}
+                                className='h-[42px] rounded-md bg-gray-900 text-white text-[14px] font-[600] hover:bg-primary transition-colors disabled:opacity-60 flex items-center justify-center'>
+                                {isLoading ? <CircularProgress size={18} color='inherit' /> : mine ? 'Update review' : 'Submit review'}
+                            </button>
+                        </form>
+                    )}
+                </div>
+            </div>
+
+            {/* Right: list */}
+            <div>
+                {reviews.length === 0 ? (
+                    <div className='py-10 text-center rounded-md border border-dashed border-gray-200'>
+                        <div className='text-[15px] font-[600] text-gray-900'>No reviews yet</div>
+                        <div className='mt-1 text-[13px] text-gray-500'>Be the first to review this product.</div>
+                    </div>
+                ) : (
+                    <>
+                        <ul className='flex flex-col'>
+                            {list.map((r) => (
+                                <li key={r._id} className='py-5 border-b border-gray-100 first:pt-0'>
+                                    <div className='flex items-center gap-3'>
+                                        <span className='w-[40px] h-[40px] rounded-full bg-gray-100 overflow-hidden flex items-center justify-center shrink-0'>
+                                            {r.image
+                                                ? <img src={r.image} alt={r.userName} className='w-full h-full object-cover' />
+                                                : <span className='text-[15px] font-[700] text-gray-500 uppercase'>{r.userName?.charAt(0) || 'U'}</span>}
+                                        </span>
+                                        <div className='min-w-0'>
+                                            <div className='text-[14px] font-[600] text-gray-900'>{r.userName || 'Customer'}</div>
+                                            <div className='text-[12px] text-gray-400'>{fmtDate(r.createdAt)}</div>
+                                        </div>
+                                    </div>
+                                    <div className='mt-3'><Rating value={r.rating} readOnly size='small' /></div>
+                                    <div className='mt-1.5 text-[14px] leading-[22px] text-gray-700 whitespace-pre-line'>{r.review}</div>
+                                </li>
+                            ))}
+                        </ul>
+                        {reviews.length > INITIAL && (
+                            <button type='button' onClick={() => setShowAll((v) => !v)}
+                                className='mt-4 h-[40px] px-5 rounded-md border border-gray-200 text-[13px] font-[600] text-gray-800 hover:border-gray-900'>
+                                {showAll ? 'Show fewer reviews' : `Show all ${reviews.length} reviews`}
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </div>

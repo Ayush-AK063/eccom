@@ -1,10 +1,7 @@
 import React, { useContext, useState } from "react";
-import TextField from "@mui/material/TextField";
-import { Button } from "@mui/material";
 import { FaRegEye } from "react-icons/fa6";
 import { FaRegEyeSlash } from "react-icons/fa6";
-import { Link } from "react-router-dom";
-import { FcGoogle } from "react-icons/fc";
+import AuthLayout, { AuthDivider, AuthField, AuthSwitch, GoogleButton } from "../../components/AuthLayout";
 import { postData } from "../../utils/api";
 import { MyContext } from "../../App";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -21,6 +18,8 @@ const Register = () => {
     email: "",
     password: "",
   });
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isShowConfirm, setIsShowConfirm] = useState(false);
 
   const context = useContext(MyContext);
   const history = useNavigate();
@@ -86,13 +85,25 @@ const Register = () => {
       return false;
     }
 
-    postData("/api/user/register", formFields).then((res) => {
-      console.log(res);
+    if (formFields.password.length < 6) {
+      context.openAlertBox("error", "Password must be at least 6 characters");
+      setIsLoading(false);
+      return false;
+    }
 
+    if (formFields.password !== confirmPassword) {
+      context.openAlertBox("error", "Password and confirm password do not match");
+      setIsLoading(false);
+      return false;
+    }
+
+    postData("/api/user/register", formFields).then((res) => {
       if (res?.error !== true) {
         setIsLoading(false);
         context.openAlertBox("success", res?.message);
         localStorage.setItem("userEmail", formFields.email)
+        localStorage.removeItem("actionType")
+        setConfirmPassword("")
         setFormFields({
           name: "",
           email: "",
@@ -107,107 +118,64 @@ const Register = () => {
   };
 
   return (
-    <section className="py-10 section">
-      <div className="container">
-        <div className="shadow-md w-[400px] m-auto rounded-md bg-white p-5 px-10 card">
-          <h3 className="text-center text-[18px] text-black">
-            Register with a new account
-          </h3>
+    <AuthLayout
+      title="Create your account"
+      subtitle="It takes less than a minute."
+      panelTitle="Join ClassyShop today."
+      panelText="Create an account to save your favourites, check out faster and keep track of every order."
+    >
+      <GoogleButton onClick={handleGoogleLogin} loading={isGoogleLoading}>Sign up with Google</GoogleButton>
+      <AuthDivider />
 
-          <form action="" className="w-full mt-5" onSubmit={handleSubmit}>
-            <div className="w-full mb-6 form-group">
-              <TextField
-                type="text"
-                id="name"
-                name="name"
-                value={formFields.name}
-                disabled={isLoading === true ? true : false}
-                label="Full Name"
-                variant="outlined"
-                className="w-full"
-                onChange={onChangeInput}
-              />
-            </div>
-            <div className="w-full mb-6 form-group">
-              <TextField
-                type="email"
-                id="email"
-                name="email"
-                value={formFields.email}
-                disabled={isLoading === true ? true : false}
-                label="Email Id"
-                variant="outlined"
-                className="w-full"
-                onChange={onChangeInput}
-              />
-            </div>
-            <div className="relative w-full mb-6 form-group">
-              <TextField
-                type={isShowPassword === false ? "password" : "text"}
-                id="password"
-                name="password"
-                value={formFields.password}
-                disabled={isLoading === true ? true : false}
-                label="Password"
-                variant="outlined"
-                className="w-full"
-                onChange={onChangeInput}
-              />
-              <Button
-                className="!absolute top-[10px] right-[10px] z-50 !w-[35px] !h-[35px] !min-w-[35px] !rounded-full !text-black"
-                onClick={() => setIsShowPassword(!isShowPassword)}
-              >
-                {isShowPassword === false ? (
-                  <FaRegEyeSlash className="text-[20px] opacity-75" />
-                ) : (
-                  <FaRegEye className="text-[20px] opacity-75" />
-                )}
-              </Button>
-            </div>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <AuthField label="Full name">
+          <input type="text" name="name" value={formFields.name} onChange={onChangeInput}
+            disabled={isLoading} autoComplete="name" placeholder="Your full name" className="authInput" />
+        </AuthField>
 
-            <div className="flex items-center w-full mt-2 mb-2">
-              <Button
-                type="submit"
-                className="w-full btn-lg btn-org flex gap-3"
-              >
-                {isLoading === true ? (
-                  <CircularProgress color="inherit" />
-                ) : (
-                  "Register"
-                )}
-              </Button>
-            </div>
+        <AuthField label="Email address">
+          <input type="email" name="email" value={formFields.email} onChange={onChangeInput}
+            disabled={isLoading} autoComplete="email" placeholder="you@example.com" className="authInput" />
+        </AuthField>
 
-            <p className="mb-3 text-center">
-              Already have an account?
-              <Link
-                className="link text-[14px] font-[600] text-primary"
-                to="/login"
-              >
-                Login
-              </Link>
-            </p>
+        <AuthField label="Password">
+          <div className="relative">
+            <input type={isShowPassword ? "text" : "password"} name="password" value={formFields.password} onChange={onChangeInput}
+              disabled={isLoading} autoComplete="new-password" placeholder="Create a password" className="authInput pr-11" />
+            <button type="button" className="authEye" aria-label={isShowPassword ? "Hide password" : "Show password"}
+              onClick={() => setIsShowPassword(!isShowPassword)}>
+              {isShowPassword ? <FaRegEye /> : <FaRegEyeSlash />}
+            </button>
+          </div>
+          <span className="block mt-1.5 text-[11px] text-gray-400">Use at least 6 characters.</span>
+        </AuthField>
 
-            <p className="text-center font-[500]">
-              Or continue with social account
-            </p>
+        <AuthField label="Confirm password">
+          <div className="relative">
+            <input type={isShowConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading} autoComplete="new-password" placeholder="Re-enter your password" className="authInput pr-11" />
+            <button type="button" className="authEye" aria-label={isShowConfirm ? "Hide password" : "Show password"}
+              onClick={() => setIsShowConfirm(!isShowConfirm)}>
+              {isShowConfirm ? <FaRegEye /> : <FaRegEyeSlash />}
+            </button>
+          </div>
+          {confirmPassword && (
+            <span className={`block mt-1.5 text-[11px] font-[600] ${confirmPassword === formFields.password ? "text-[#15803d]" : "text-red-500"}`}>
+              {confirmPassword === formFields.password ? "✓ Passwords match" : "Passwords don't match"}
+            </span>
+          )}
+        </AuthField>
 
-            <Button
-              className="flex w-full gap-3 !bg-[#f1f1f1] btn-lg !text-black"
-              onClick={handleGoogleLogin}
-              disabled={isGoogleLoading}
-            >
-              {isGoogleLoading ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <FcGoogle className="text-[20px]" />
-              )}
-              Sign up with Google
-            </Button>
-          </form>
+        <button type="submit" disabled={isLoading} className="authSubmit mt-2">
+          {isLoading ? <CircularProgress size={20} color="inherit" /> : "Create account"}
+        </button>
+        <div className="text-[11px] text-gray-400 text-center leading-[17px]">
+          We’ll email you a one-time code to verify your address.
         </div>
-      </div>
-    </section>
+      </form>
+
+      <AuthSwitch text="Already have an account?" to="/login" cta="Log in" />
+    </AuthLayout>
   );
 };
 

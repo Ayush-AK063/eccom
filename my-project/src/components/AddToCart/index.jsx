@@ -9,7 +9,8 @@ import { isSameCartItem, isVariantComplete } from '../../utils/formatPrice';
 // Product (+ chuna gaya variant) cart mein nahi → "Add to Cart" button
 // Cart mein hai → [-] qty [+]  (qty 0 = item remove)
 // Variant chahiye par chuna nahi → onNeedVariant() (card par overlay khulta hai)
-const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, className = '' }) => {
+// alwaysAdd: card ke liye — hamesha "Add to Cart" button; cart mein ho to har click pe qty +1 (stepper nahi)
+const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, alwaysAdd = false, className = '', compact = false }) => {
 
     const context = useContext(MyContext)
     const [isLoading, setIsLoading] = useState(false)
@@ -30,11 +31,11 @@ const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, classNa
         }
     }
 
-    if (cartItem) {
+    if (cartItem && !alwaysAdd) {
         const qty = cartItem.quantity || 1
         const maxReached = product?.countInStock > 0 && qty >= product.countInStock
         return (
-            <div className={`flex items-center justify-between overflow-hidden border border-[rgba(0,0,0,0.15)] rounded-md ${className}`}>
+            <div className={`flex items-center justify-between overflow-hidden border rounded-md ${compact ? 'border-primary h-[38px]' : 'border-[rgba(0,0,0,0.15)]'} ${className}`}>
                 <Button className='!min-w-[35px] !w-[35px] !h-[35px] !rounded-none !text-black'
                     disabled={isLoading}
                     onClick={() => run(() => context.updateCartQty(cartItem._id, qty - 1))}>
@@ -58,14 +59,24 @@ const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, classNa
             else context.openAlertBox('error', 'Please select the product options first')
             return
         }
+        if (cartItem) {
+            // alwaysAdd: pehle se cart mein -> qty badhao
+            const max = product?.countInStock || Infinity
+            if ((cartItem.quantity || 1) >= max) return context.openAlertBox('error', 'No more stock available')
+            const next = (cartItem.quantity || 1) + quantity
+            return run(async () => {
+                const res = await context.updateCartQty(cartItem._id, next)
+                if (res?.error === false) context.openAlertBox('success', `Added to cart · Qty ${next}`)
+            })
+        }
         run(() => context.addToCart(product, quantity, variant))
     }
 
     return (
-        <Button className={`flex gap-2 btn-org ${className}`}
+        <Button className={compact ? `addCartCompact ${className}` : `flex gap-2 btn-org ${className}`}
             disabled={isLoading || outOfStock}
             onClick={handleAdd}>
-            {isLoading ? <CircularProgress size={18} color='inherit' /> : <MdOutlineShoppingCart className='text-[20px]' />}
+            {isLoading ? <CircularProgress size={18} color='inherit' /> : <MdOutlineShoppingCart className={compact ? 'text-[17px]' : 'text-[20px]'} />}
             {outOfStock ? 'Out of Stock' : 'Add to Cart'}
         </Button>
     )

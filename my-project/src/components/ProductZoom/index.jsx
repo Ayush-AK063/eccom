@@ -1,77 +1,71 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import InnerImageZoom from 'react-inner-image-zoom';
 import 'react-inner-image-zoom/lib/styles.min.css';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Link } from 'react-router-dom';
+import { FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import './style.css';
 
-// Import Swiper styles
-import 'swiper/css';
-import 'swiper/css/navigation';
+const FALLBACK = "https://dummyimage.com/600x600/f3f4f6/9ca3af&text=No+Image";
 
-// import required modules
-import { Navigation } from 'swiper/modules';
-
+// Product gallery: left thumbnails + main image (hover zoom). Page aur Quick View dono mein.
 const ProductZoom = ({ item }) => {
+    const images = item?.images?.length > 0 ? item.images : [FALLBACK];
+    const [index, setIndex] = useState(0);
 
-    const [slideIndex, setSlideIndex] = useState(0)
-    const zoomSliderBig = useRef()
-    const zoomSliderSmall = useRef()
+    // Dusra product khula to pehli image
+    useEffect(() => { setIndex(0); }, [item?._id]);
 
-    const goto = (index) => {
-        setSlideIndex(index)
-        zoomSliderSmall.current?.swiper?.slideTo(index)
-        zoomSliderBig.current?.swiper?.slideTo(index)
-    }
-
-    const images = item?.images?.length > 0 ? item.images : ["https://dummyimage.com/500x500/cccccc/000000&text=No+Image"];
+    const go = (dir) => setIndex((i) => (i + dir + images.length) % images.length);
 
     return (
-        <>
-            <div className='flex gap-3'>
-
-                <div className='slider w-[15%]'>
-                    <Swiper
-                        ref={zoomSliderSmall}
-                        direction={'vertical'}
-                        slidesPerView={4}
-                        spaceBetween={10}
-                        modules={[Navigation]}
-                        navigation={true}
-                        className="zoomProductSliderThumbs h-[500px] overflow-hidden"
-                    >
-                        {images.map((imgUrl, index) => (
-                            <SwiperSlide key={index}>
-                                <div className={`overflow-hidden cursor-pointer group item ${slideIndex === index ? "opacity-1" : "opacity-30"}`}
-                                    onClick={() => goto(index)}>
-                                    <img src={imgUrl}
-                                        alt={`thumb-${index}`}
-                                        className='w-full transition-all group-hover:scale-105' />
-                                </div>
-                            </SwiperSlide>
-                        ))}
-                    </Swiper>
+        <div className='pGallery'>
+            {images.length > 1 && (
+                <div className='pGallery__thumbs' role='tablist' aria-label='Product images'>
+                    {images.map((src, i) => (
+                        <button
+                            key={src + i}
+                            type='button'
+                            role='tab'
+                            aria-selected={i === index}
+                            onClick={() => setIndex(i)}
+                            onMouseEnter={() => setIndex(i)}
+                            className={`pGallery__thumb ${i === index ? 'is-active' : ''}`}
+                        >
+                            <img src={src} alt={`${item?.name || 'Product'} ${i + 1}`} loading='lazy' />
+                        </button>
+                    ))}
                 </div>
+            )}
 
-                <div className='zoomContainer rounded-md w-[85%] h-[500px] overflow-hidden'>
-                    <Swiper
-                        ref={zoomSliderBig}
-                        slidesPerView={1}
-                        spaceBetween={0}
-                        navigation={false}
-                    >
-                        {images.map((imgUrl, index) => (
-                            <SwiperSlide key={index}>
-                                <InnerImageZoom
-                                    src={imgUrl}
-                                    zoomType='hover'
-                                    zoomScale={1} />
-                            </SwiperSlide>
-                        ))}
-                    </Swiper>
+            <div className='pGallery__main'>
+                <InnerImageZoom
+                    key={images[index]}
+                    src={images[index]}
+                    zoomSrc={images[index]}
+                    zoomType='hover'
+                    zoomScale={1.6}
+                    hideHint
+                    className='pGallery__zoom'
+                />
 
-                </div>
+                {images.length > 1 && (
+                    <>
+                        <button type='button' aria-label='Previous image' className='pGallery__nav left-3' onClick={() => go(-1)}>
+                            <FiChevronLeft />
+                        </button>
+                        <button type='button' aria-label='Next image' className='pGallery__nav right-3' onClick={() => go(1)}>
+                            <FiChevronRight />
+                        </button>
+                        <span className='pGallery__count'>{index + 1} / {images.length}</span>
+                    </>
+                )}
+
+                {item?.discount > 0 && (
+                    <span className='absolute top-4 left-4 z-10 bg-primary text-white rounded-full px-3 py-1 text-[12px] font-[600]'>
+                        -{item.discount}%
+                    </span>
+                )}
             </div>
-        </>
+        </div>
     )
 }
 

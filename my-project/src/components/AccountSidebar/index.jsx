@@ -1,165 +1,108 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Button } from "@mui/material";
-import { RiFolderUploadFill } from "react-icons/ri";
-import { FaRegUser } from "react-icons/fa";
-import { LuClipboardCheck } from "react-icons/lu";
-import { RiLogoutBoxRLine } from "react-icons/ri";
-import { FaRegHeart, FaMapMarkerAlt } from "react-icons/fa";
-import { NavLink } from "react-router-dom";
-import { MyContext } from "../../App";
+import { NavLink, useNavigate } from "react-router-dom";
 import CircularProgress from "@mui/material/CircularProgress";
-import { putDataForImage } from "../../utils/api";
+import { FiCamera, FiHeart, FiLogOut, FiMapPin, FiPackage, FiUser } from "react-icons/fi";
+import { MyContext } from "../../App";
+import { getData, putDataForImage } from "../../utils/api";
+import "./style.css";
 
+const ALLOWED = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
+
+// My Account / My List / My Orders / My Addresses — sab pages ka common sidebar
 const AccountSidebar = () => {
-  const [previews, setPreviews] = useState([]);
-  const [uploading, setUploading] = useState(false);
-
   const context = useContext(MyContext);
+  const history = useNavigate();
+  const [avatar, setAvatar] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const user = context?.userData;
 
-  useEffect(() => {
-    if (context?.userData?.avatar) {
-      setPreviews([context.userData.avatar]);
-    } else {
-      setPreviews([]);
+  useEffect(() => { setAvatar(user?.avatar || ""); }, [user?.avatar]);
+
+  const onChangeFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!ALLOWED.includes(file.type)) {
+      context.openAlertBox("error", "Please select a JPG, PNG or WEBP image.");
+      return;
     }
-  }, [context?.userData]);
-
-  let img_arr = [];
-  let uniqueArray = [];
-  let selectedImages = [];
-
-  const formdata = new FormData();
-
-  const onChangeFile = async (e, apiEndPoint) => {
+    const formdata = new FormData();
+    formdata.append("avatar", file);
+    setUploading(true);
     try {
-      setPreviews([]);
-
-      const files = e.target.files;
-      const allowedTypes = [
-        "image/jpg",
-        "image/jpeg",
-        "image/png",
-        "image/webp",
-      ];
-
-      setUploading(true);
-
-      for (let file of files) {
-        if (allowedTypes.includes(file.type)) {
-          selectedImages.push(file);
-          formdata.append(`avatar`, file);
-
-          putDataForImage("/api/user/user-avatar", formdata, {
-            withCredentials: true,
-          }).then((res) => {
-            setUploading(false);
-            let avatar = [];
-            avatar.push(res?.avatar);
-            setPreviews(avatar);
-          });
-        } else {
-          context.openAlertBox(
-            "error",
-            "Please select a valid JPG/JPEG/PNG/WEBP image file."
-          );
-          setUploading(false);
-          return false;
-        }
+      const res = await putDataForImage("/api/user/user-avatar", formdata);
+      if (res?.avatar) {
+        setAvatar(res.avatar);
+        context.setUserData((prev) => (prev ? { ...prev, avatar: res.avatar } : prev));
+        context.openAlertBox("success", "Profile picture updated");
+      } else {
+        context.openAlertBox("error", res?.message || "Could not upload picture");
       }
-    } catch (error) {
-      console.log(error);
+    } finally {
+      setUploading(false);
     }
   };
+
+  const logout = () => {
+    getData(`/api/user/logout?token=${localStorage.getItem("accesstoken")}`).then((res) => {
+      if (res?.error === false) {
+        context.setIsLogin(false);
+        context.setUserData(null);
+        context.setCartData([]);
+        context.setMyListData([]);
+        context.openAlertBox("success", res?.message || "Logged out");
+        localStorage.removeItem("accesstoken");
+        localStorage.removeItem("refreshtoken");
+        history("/");
+      } else {
+        context.openAlertBox("error", res?.message || "Could not log out");
+      }
+    });
+  };
+
+  const initials = (user?.name || "U").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const links = [
+    { to: "/my-account", label: "My Profile", icon: <FiUser className="text-[17px] shrink-0" /> },
+    { to: "/my-orders", label: "My Orders", icon: <FiPackage className="text-[17px] shrink-0" /> },
+    { to: "/my-list", label: "My Wishlist", icon: <FiHeart className="text-[17px] shrink-0" />, count: context?.myListData?.length },
+    { to: "/my-address", label: "My Addresses", icon: <FiMapPin className="text-[17px] shrink-0" />, count: context?.addressList?.length },
+  ];
+
   return (
-    <div className="sticky bg-white rounded-md shadow-md card top-[10px]">
-      <div className="flex flex-col items-center justify-center w-full p-5">
-        <div className="w-[110px] h-[110px] mb-4 rounded-full relative overflow-hidden group flex items-center justify-center bg-gray-200">
-          {uploading === true ? (
-            <CircularProgress color="inherit" />
+    <aside className="accSide">
+      <div className="accSide__user">
+        <label className="accSide__avatar" title="Change profile picture">
+          {uploading ? (
+            <CircularProgress size={24} color="inherit" />
+          ) : avatar ? (
+            <img src={avatar} alt={user?.name || "Profile"} />
           ) : (
-            <>
-              {previews && previews.length > 0 && previews[0] ? (
-                previews.map((img, index) => (
-                  <img
-                    src={img}
-                    key={index}
-                    alt="profile"
-                    className="object-cover w-full h-full"
-                  />
-                ))
-              ) : context.userData?.avatar ? (
-                <img
-                  src={context.userData.avatar}
-                  alt="profile"
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <img
-                  src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                  alt="default"
-                  className="object-cover w-full h-full"
-                />
-              )}
-            </>
+            <span className="text-[22px] font-[700] text-gray-500">{initials}</span>
           )}
-
-          <div className="absolute flex items-center justify-center cursor-pointer top-0 left-0 z-50 w-full h-full overlay opacity-0 transition-all bg-[rgba(0,0,0,0.7)] group-hover:opacity-100">
-            <RiFolderUploadFill className="text-[#fff] text-[22px]" />
-            <input
-              type="file"
-              onChange={(e) => onChangeFile(e, "/api/user/user-avatar")}
-              name="avatar"
-              accept="image/*"
-              className="absolute top-0 left-0 w-full h-full opacity-0"
-            />
-          </div>
+          <span className="accSide__cam"><FiCamera /></span>
+          <input type="file" accept="image/*" className="sr-only" onChange={onChangeFile} disabled={uploading} />
+        </label>
+        <div className="min-w-0">
+          <div className="text-[12px] text-gray-500">Hello,</div>
+          <div className="text-[15px] font-[700] text-gray-900 truncate">{user?.name || "Customer"}</div>
+          <div className="text-[12px] text-gray-500 truncate">{user?.email}</div>
         </div>
-
-        <h3>{context?.userData?.name}</h3>
-        <h6 className="text-[13px] font-500">{context?.userData?.email}</h6>
       </div>
 
-      <ul className="list-none bg-[#f1f1f1] myAccountTabs">
-        <li className="w-full pb-5">
-          <NavLink to="/my-account" exact={true} activeClassName="isActive">
-            <Button className="flex !py-2 !capitalize !px-5 !text-left !justify-start !text-[rgba(0,0,0,0.8)] items-center w-full gap-2 !rounded-none">
-              <FaRegUser className="text-[20px]" />
-              My Profile
-            </Button>
+      <nav className="accSide__nav" aria-label="Account">
+        {links.map(({ to, label, icon, count }) => (
+          <NavLink key={to} to={to} end className={({ isActive }) => `accSide__link ${isActive ? "is-active" : ""}`}>
+            {icon}
+            <span className="flex-1">{label}</span>
+            {count > 0 && <span className="accSide__count">{count}</span>}
           </NavLink>
-        </li>
-        <li className="w-full pb-5">
-          <NavLink to="/my-list" exact={true} activeClassName="isActive">
-            <Button className="flex !py-2 !capitalize !px-5 !text-left !justify-start !text-[rgba(0,0,0,0.8)] items-center w-full gap-2 !rounded-none">
-              <FaRegHeart className="text-[20px]" />
-              My List
-            </Button>
-          </NavLink>
-        </li>
-        <li className="w-full pb-5">
-          <NavLink to="/my-orders" exact={true} activeClassName="isActive">
-            <Button className="flex !py-2 !capitalize !px-5 !text-left !justify-start !text-[rgba(0,0,0,0.8)] items-center w-full gap-2 !rounded-none">
-              <LuClipboardCheck className="text-[20px]" />
-              My Orders
-            </Button>
-          </NavLink>
-        </li>
-        <li className="w-full pb-5">
-          <NavLink to="/my-address" exact={true} activeClassName="isActive">
-            <Button className="flex !py-2 !capitalize !px-5 !text-left !justify-start !text-[rgba(0,0,0,0.8)] items-center w-full gap-2 !rounded-none">
-              <FaMapMarkerAlt className="text-[20px]" />
-              My Addresses
-            </Button>
-          </NavLink>
-        </li>
-        <li className="w-full pb-5">
-          <Button className="flex !py-2 !capitalize !px-5 !text-left !justify-start !text-[rgba(0,0,0,0.8)] items-center w-full gap-2 !rounded-none">
-            <RiLogoutBoxRLine className="text-[20px]" />
-            Logout
-          </Button>
-        </li>
-      </ul>
-    </div>
+        ))}
+        <button type="button" onClick={logout} className="accSide__link accSide__logout">
+          <FiLogOut className="text-[17px] shrink-0" />
+          <span className="flex-1 text-left">Logout</span>
+        </button>
+      </nav>
+    </aside>
   );
 };
 

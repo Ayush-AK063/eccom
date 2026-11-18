@@ -1,0 +1,131 @@
+.collectionGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (min-width: 1024px) {
+    .collectionGrid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    /* 1 bada (2x2) + 4 chhote */
+    .collectionGrid.is-bento {
+        grid-template-rows: repeat(2, 220px);
+    }
+
+    .collectionGrid.is-bento .collectionTile.is-featured {
+        grid-column: span 2;
+        grid-row: span 2;
+    }
+}
+
+.collectionTile {
+    position: relative;
+    display: block;
+    min-height: 200px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #f3f4f6;
+    isolation: isolate;
+}
+
+@media (max-width: 1023px) {
+    .collectionTile.is-featured {
+        grid-column: span 2;
+        min-height: 260px;
+    }
+}
+
+.collectionTile__img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+    transition: transform 0.6s cubic-bezier(.2, .8, .2, 1);
+}
+
+.collectionTile:hover .collectionTile__img {
+    transform: scale(1.05);
+}
+
+.collectionTile__body {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 18px 20px;
+    max-width: 70%;
+}
+
+.collectionTile.is-featured .collectionTile__body {
+    padding: 28px 30px;
+}
+
+.collectionTile__tag {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #6b7280;
+}
+
+.collectionTile__title {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 24px;
+    color: #111827;
+}
+
+.collectionTile.is-featured .collectionTile__title {
+    font-size: 28px;
+    line-height: 34px;
+}
+
+.collectionTile__text {
+    font-size: 13px;
+    line-height: 18px;
+    color: #4b5563;
+}
+
+.collectionTile__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    background: #111827;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+
+.collectionTile:hover .collectionTile__cta {
+    background: #ff5252;
+}
+
+/* Chhote tiles mein description chhupao, saaf dikhe */
+@media (min-width: 1024px) {
+    .collectionGrid.is-bento .collectionTile:not(.is-featured) .collectionTile__text {
+        display: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .collectionTile:not(.is-featured) .collectionTile__text {
+        display: none;
+    }
+
+    .collectionTile__body {
+        padding: 14px;
+        max-width: 85%;
+    }
+}

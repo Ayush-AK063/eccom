@@ -792,7 +792,7 @@ export const filterProducts = async (req, res) => {
       query.$and = [{ $or: [{ name: rx }, { brand: rx }, { catName: rx }, { subCat: rx }, { thirdSubCat: rx }] }];
     }
 
-    const sortFields = { name: "name", price: "price", rating: "rating", createdAt: "createdAt" };
+    const sortFields = { name: "name", price: "price", rating: "rating", createdAt: "createdAt", discount: "discount" };
     const sort = sortFields[sortBy]
       ? { [sortFields[sortBy]]: order === "desc" ? -1 : 1 }
       : { createdAt: -1 };

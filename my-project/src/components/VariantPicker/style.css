@@ -1,0 +1,86 @@
+.vPicker__scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(1px);
+    cursor: default;
+    animation: vPickerFade 0.2s ease;
+}
+
+.vPicker {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    z-index: 41;
+    padding: 12px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid #eef0f2;
+    box-shadow: 0 12px 28px -10px rgba(17, 24, 39, 0.3);
+    animation: vPickerUp 0.25s cubic-bezier(.2, .8, .2, 1);
+}
+
+@keyframes vPickerUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes vPickerFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.vPicker__close {
+    width: 26px;
+    height: 26px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    font-size: 16px;
+    transition: all 0.15s ease;
+}
+
+.vPicker__close:hover {
+    background: #f3f4f6;
+    color: #111827;
+}
+
+.vPicker__opt {
+    min-width: 36px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    color: #111827;
+    text-transform: uppercase;
+    transition: all 0.15s ease;
+}
+
+.vPicker__opt:hover {
+    border-color: #111827;
+}
+
+.vPicker__opt.is-active {
+    background: #111827;
+    border-color: #111827;
+    color: #fff;
+}
+
+.vPicker__hint {
+    height: 38px;
+    border-radius: 6px;
+    border: 1.5px dashed #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+}

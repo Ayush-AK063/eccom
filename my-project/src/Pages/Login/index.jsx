@@ -1,11 +1,10 @@
 import React from "react";
-import TextField from "@mui/material/TextField";
-import { Button, CircularProgress } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import { FaRegEye } from "react-icons/fa6";
 import { FaRegEyeSlash } from "react-icons/fa6";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { FcGoogle } from "react-icons/fc";
+import { useNavigate } from "react-router-dom";
+import AuthLayout, { AuthDivider, AuthField, AuthSwitch, GoogleButton } from "../../components/AuthLayout";
 import { MyContext } from "../../App";
 import { useContext } from "react";
 import { postData } from "../../utils/api";
@@ -52,8 +51,6 @@ const Login = () => {
 
     postData("/api/user/login", formFields, { withCredentials: true }).then(
       (res) => {
-        console.log(res);
-
         if (res?.error !== true) {
           setIsLoading(false);
           context.openAlertBox("success", res?.message);
@@ -77,25 +74,12 @@ const Login = () => {
     );
   };
 
+  // Forgot password page pe jao (email bhara ho to saath le jao)
   const forgotPassword = () => {
-    if (formFields.email === "") {
-      context.openAlertBox("error", "Email field required");
-      return false;
-    }
-
-    localStorage.setItem("userEmail", formFields.email);
-    localStorage.setItem("actionType", "forgot-password");
-
-    postData("/api/user/forgot-password", {
-      email: formFields.email,
-    }).then((res) => {
-      if (res?.error === false) {
-        context.openAlertBox("success", res?.message || "OTP sent");
-        history("/verify");
-      } else {
-        context.openAlertBox("error", res?.message || "Something went wrong");
-      }
-    });
+    if (formFields.email) localStorage.setItem("userEmail", formFields.email);
+    localStorage.removeItem("otpVerified");
+    localStorage.removeItem("actionType");
+    history("/forgot-password");
   };
 
   const handleGoogleLogin = async () => {
@@ -126,101 +110,46 @@ const Login = () => {
 
 
   return (
-    <section className="py-10 section">
-      <div className="container">
-        <div className="shadow-md w-[400px] m-auto rounded-md bg-white p-5 px-10 card">
-          <h3 className="text-center text-[18px] text-black">
-            Login to your account
-          </h3>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Log in to continue shopping."
+      panelTitle="Good to see you again."
+      panelText="Sign in to pick up where you left off — your cart, wishlist and orders are waiting."
+    >
+      <GoogleButton onClick={handleGoogleLogin} loading={isGoogleLoading} />
+      <AuthDivider />
 
-          <form action="" className="w-full mt-5" onSubmit={handleSubmit}>
-            <div className="w-full mb-6 form-group">
-              <TextField
-                type="email"
-                id="email"
-                name="email"
-                value={formFields.email}
-                disabled={isLoading === true ? true : false}
-                label="Email Id"
-                variant="outlined"
-                className="w-full"
-                onChange={onChangeInput}
-              />
-            </div>
-            <div className="relative w-full mb-6 form-group">
-              <TextField
-                type={isShowPassword === false ? "password" : "text"}
-                id="password"
-                name="password"
-                value={formFields.password}
-                disabled={isLoading === true ? true : false}
-                label="Password"
-                variant="outlined"
-                className="w-full"
-                onChange={onChangeInput}
-              />
-              <Button
-                className="!absolute top-[10px] right-[10px] z-50 !w-[35px] !h-[35px] !min-w-[35px] !rounded-full !text-black"
-                onClick={() => setIsShowPassword(!isShowPassword)}
-              >
-                {isShowPassword === false ? (
-                  <FaRegEyeSlash className="text-[20px] opacity-75" />
-                ) : (
-                  <FaRegEye className="text-[20px] opacity-75" />
-                )}
-              </Button>
-            </div>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <AuthField label="Email address">
+          <input type="email" name="email" value={formFields.email} onChange={onChangeInput}
+            disabled={isLoading} autoComplete="email" placeholder="you@example.com" className="authInput" />
+        </AuthField>
 
-            <span
-              className="cursor-pointer link text-[14px] font-[600]"
-              onClick={forgotPassword}
-            >
-              Forget Password?
-            </span>
+        <AuthField
+          label="Password"
+          right={
+            <button type="button" onClick={forgotPassword} className="text-[12px] font-[600] text-primary hover:underline">
+              Forgot password?
+            </button>
+          }
+        >
+          <div className="relative">
+            <input type={isShowPassword ? "text" : "password"} name="password" value={formFields.password} onChange={onChangeInput}
+              disabled={isLoading} autoComplete="current-password" placeholder="Enter your password" className="authInput pr-11" />
+            <button type="button" className="authEye" aria-label={isShowPassword ? "Hide password" : "Show password"}
+              onClick={() => setIsShowPassword(!isShowPassword)}>
+              {isShowPassword ? <FaRegEye /> : <FaRegEyeSlash />}
+            </button>
+          </div>
+        </AuthField>
 
-            <div className="flex items-center w-full mt-2 mb-2">
-              <Button
-                type="submit"
-                className="w-full btn-lg btn-org flex gap-3"
-              >
-                {isLoading === true ? (
-                  <CircularProgress color="inherit" />
-                ) : (
-                  "Login"
-                )}
-              </Button>
-            </div>
+        <button type="submit" disabled={isLoading} className="authSubmit mt-2">
+          {isLoading ? <CircularProgress size={20} color="inherit" /> : "Log in"}
+        </button>
+      </form>
 
-            <p className="mb-3 text-center">
-              Not Registered?
-              <Link
-                className="link text-[14px] font-[600] text-primary"
-                to="/register"
-              >
-                Sign Up
-              </Link>
-            </p>
-
-            <p className="text-center font-[500]">
-              Or continue with social account
-            </p>
-
-            <Button
-              className="flex w-full gap-3 !bg-[#f1f1f1] btn-lg !text-black"
-              onClick={handleGoogleLogin}
-              disabled={isGoogleLoading}
-            >
-              {isGoogleLoading ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <FcGoogle className="text-[20px]" />
-              )}
-              Login with Google
-            </Button>
-          </form>
-        </div>
-      </div>
-    </section>
+      <AuthSwitch text="New to ClassyShop?" to="/register" cta="Create an account" />
+    </AuthLayout>
   );
 };
 

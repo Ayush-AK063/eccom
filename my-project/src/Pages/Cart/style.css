@@ -1,0 +1,242 @@
+.cpGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 28px;
+    align-items: start;
+}
+
+@media (max-width: 1023px) {
+    .cpGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Columns: product | price | qty | total */
+.cpHead,
+.cpLine {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px 130px 120px;
+    gap: 16px;
+    align-items: start;
+}
+
+.cpHead {
+    padding: 0 20px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+}
+
+.cpList {
+    border: 1px solid #f1f2f4;
+    border-radius: 6px;
+}
+
+.cpLine {
+    padding: 20px;
+    border-bottom: 1px solid #f1f2f4;
+    transition: opacity 0.2s ease;
+}
+
+.cpLine:last-child {
+    border-bottom: 0;
+}
+
+.cpLine.is-busy {
+    opacity: 0.6;
+}
+
+.cpLine__product {
+    display: flex;
+    gap: 16px;
+    min-width: 0;
+}
+
+.cpLine__img {
+    width: 110px;
+    height: 110px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #f7f7f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.cpLine__img img {
+    width: 86%;
+    height: 86%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
+    transition: transform 0.3s ease;
+}
+
+.cpLine__img:hover img {
+    transform: scale(1.05);
+}
+
+.cpLine__variant {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #4b5563;
+    transition: border-color 0.15s ease;
+}
+
+.cpLine__variant b {
+    color: #111827;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cpLine__variant:hover {
+    border-color: #111827;
+}
+
+.cpLine__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    transition: color 0.15s ease;
+}
+
+.cpLine__action:hover {
+    color: #111827;
+}
+
+.cpLine__label {
+    display: none;
+}
+
+.cpLine__price,
+.cpLine__total {
+    padding-top: 2px;
+}
+
+.cpLine__qtyCell {
+    display: flex;
+    justify-content: center;
+}
+
+.cpLine__qty {
+    display: flex;
+    align-items: center;
+    height: 38px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.cpLine__qty button {
+    width: 34px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #111827;
+    transition: background 0.15s ease;
+}
+
+.cpLine__qty button:hover:not(:disabled) {
+    background: #f3f4f6;
+}
+
+.cpLine__qty button:disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+}
+
+.cpLine__qty span {
+    min-width: 30px;
+    display: flex;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* Summary */
+.cpSummary {
+    position: sticky;
+    top: 20px;
+    padding: 22px;
+    border: 1px solid #f1f2f4;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.cpCheckout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 50px;
+    margin-top: 16px;
+    border-radius: 6px;
+    background: #ff5252;
+    color: #fff !important;
+    font-size: 15px;
+    font-weight: 700;
+    transition: background 0.2s ease;
+}
+
+.cpCheckout:hover {
+    background: #e64545;
+}
+
+/* Tablet / mobile: line stacked */
+@media (max-width: 767px) {
+    .cpHead {
+        display: none;
+    }
+
+    .cpLine {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px 12px;
+        padding: 16px;
+    }
+
+    .cpLine__product {
+        grid-column: 1 / -1;
+    }
+
+    .cpLine__img {
+        width: 88px;
+        height: 88px;
+    }
+
+    .cpLine__label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #9ca3af;
+    }
+
+    .cpLine__qtyCell {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .cpLine__total {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .cpSummary {
+        position: static;
+    }
+}

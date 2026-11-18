@@ -229,11 +229,6 @@ const Footer = () => {
         anchor={"right"}
         className='cartPanel'
         >
-            <div className='flex items-center justify-between gap-3 px-4 py-3 border-b border-[rgba(0,0,0,0.2)] overflow-hidden'>
-            <h4>Shopping Cart ({context?.cartData?.length || 0})</h4>
-            <IoClose className='text-[20px] cursor-pointer' onClick={context.toggleCartPanel(false)}/>
-            </div>
-
             <CartPanel/>
 
         </Drawer>

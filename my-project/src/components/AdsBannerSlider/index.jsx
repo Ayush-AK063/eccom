@@ -12,7 +12,7 @@ export const AdsBannerSlider = ({ banners = [], items = 3 }) => {
     if (!banners.length) return null
 
     return (
-        <div className='w-full py-5 pb-0'>
+        <div className='w-full pt-8 adsBanner3'>
             <Swiper
                 slidesPerView={items}
                 spaceBetween={10}
@@ -38,7 +38,7 @@ export const AdsBannerSlider2 = ({ banners = [], items = 1 }) => {
     if (!banners.length) return null
 
     return (
-        <div className='w-full py-5 pb-0'>
+        <div className='w-full pt-8 adsBannerWide'>
             <Swiper
                 slidesPerView={items}
                 spaceBetween={10}
