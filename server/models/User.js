@@ -27,6 +27,9 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Forgot password: OTP verify ke baad ek-baar wala token (sha256 hash) + expiry
+    resetTokenHash: { type: String, default: "", select: false },
+    resetTokenExpires: { type: Date, default: null, select: false },
     avatar: {
       type: String,
       default: "",

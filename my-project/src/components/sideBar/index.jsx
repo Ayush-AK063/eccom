@@ -25,8 +25,10 @@ const SideBar = ({ filters, setFilters }) => {
     const [price, setPrice] = useState([filters.minPrice, filters.maxPrice])
 
     useEffect(() => {
-        getData('/api/productSize').then((res) => {
-            if (res?.success) setSizes(res.data || [])
+        // Admin → Variant Options ka "Size" (purani productSize list nahi)
+        getData('/api/variantOption').then((res) => {
+            const opt = (res?.data || []).find((o) => o.name?.toLowerCase() === 'size')
+            setSizes((opt?.values || []).map((v) => ({ _id: v.value, name: v.value })))
         })
     }, [])
 

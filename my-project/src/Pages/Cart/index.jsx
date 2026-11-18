@@ -7,6 +7,8 @@ import ProductSlider from '../../components/ProductSlider';
 import { MyContext } from '../../App';
 import { postData } from '../../utils/api';
 import { formatPrice } from '../../utils/formatPrice';
+import { computeCharges, checkoutBlockers } from '../../utils/storeSettings';
+import CouponBox from '../../components/CouponBox';
 import './style.css';
 
 const CartPage = () => {
@@ -32,6 +34,10 @@ const CartPage = () => {
   const subTotal = cartData.reduce((t, i) => t + (i.productId.price || 0) * (i.quantity || 1), 0)
   const mrpTotal = cartData.reduce((t, i) => t + Math.max(i.productId.oldprice || 0, i.productId.price || 0) * (i.quantity || 1), 0)
   const discount = mrpTotal - subTotal
+  const couponOff = Math.min(context?.coupon?.discount || 0, subTotal)
+  const charges = computeCharges(context?.settings, subTotal - couponOff)
+  const blockers = checkoutBlockers(context?.settings, subTotal, cartData)
+  const sh = context?.settings?.shipping || {}
 
   const breadcrumb = (
     <nav className='flex items-center gap-1.5 text-[13px] text-gray-500 mb-3' aria-label='breadcrumb'>
@@ -108,6 +114,7 @@ const CartPage = () => {
           {/* Summary */}
           <aside className='cpSummary'>
             <h2 className='text-[17px] font-[700] text-gray-900'>Order Summary</h2>
+            <CouponBox subTotal={subTotal} />
 
             <div className='mt-4 flex flex-col gap-2.5 text-[14px]'>
               <div className='flex justify-between text-gray-600'>
@@ -120,15 +127,22 @@ const CartPage = () => {
                   <span className='text-[#15803d] font-[600]'>− {formatPrice(discount)}</span>
                 </div>
               )}
+              {couponOff > 0 && <div className='flex justify-between text-gray-600'><span>Coupon ({context.coupon.code})</span><span className='text-[#15803d] font-[600]'>− {formatPrice(couponOff)}</span></div>}
               <div className='flex justify-between text-gray-600'>
                 <span>Shipping</span>
-                <span className='text-[#15803d] font-[600]'>Free</span>
+                {charges.shipping > 0 ? <span className='text-gray-900'>{formatPrice(charges.shipping)}</span> : <span className='text-[#15803d] font-[600]'>Free</span>}
               </div>
+              {charges.codCharge > 0 && (
+                <div className='flex justify-between text-gray-600'>
+                  <span>COD fee</span>
+                  <span className='text-gray-900'>{formatPrice(charges.codCharge)}</span>
+                </div>
+              )}
             </div>
 
             <div className='flex justify-between items-baseline mt-4 pt-4 border-t border-dashed border-gray-200'>
               <span className='text-[16px] font-[700] text-gray-900'>Total</span>
-              <span className='text-[22px] font-[800] text-gray-900'>{formatPrice(subTotal)}</span>
+              <span className='text-[22px] font-[800] text-gray-900'>{formatPrice(charges.total)}</span>
             </div>
 
             {discount > 0 && (
@@ -137,13 +151,25 @@ const CartPage = () => {
               </div>
             )}
 
-            <Link to='/checkout' className='cpCheckout'>
-              <FiLock className='text-[15px]' /> Proceed to Checkout
-            </Link>
+            {charges.toFree > 0 && (
+              <div className='mt-3 px-3 py-2 rounded-md bg-[#eff6ff] text-[13px] text-[#1d4ed8]'>
+                Add <b>{formatPrice(charges.toFree)}</b> more for free delivery
+              </div>
+            )}
+            {blockers.length > 0 && (
+              <ul className='mt-3 px-3 py-2 rounded-md bg-[#fff7ed] text-[13px] text-[#c2410c] flex flex-col gap-1'>
+                {blockers.map((b) => <li key={b}>{b}</li>)}
+              </ul>
+            )}
+
+            {blockers.length > 0
+              ? <span className='cpCheckout opacity-50 pointer-events-none' aria-disabled='true'><FiLock className='text-[15px]' /> Proceed to Checkout</span>
+              : <Link to='/checkout' className='cpCheckout'><FiLock className='text-[15px]' /> Proceed to Checkout</Link>}
 
             <div className='mt-4 flex flex-col gap-2.5 text-[12px] text-gray-500'>
-              <div className='flex items-center gap-2'><FiTruck className='text-[15px] text-gray-400' /> Free shipping · Est. delivery in 2-3 days</div>
-              <div className='flex items-center gap-2'><LiaMoneyBillWaveSolid className='text-[16px] text-gray-400' /> Cash on Delivery available</div>
+              <div className='flex items-center gap-2'><FiTruck className='text-[15px] text-gray-400' /> {charges.shipping > 0 ? 'Standard delivery' : 'Free delivery'} · Est. {sh.etaMinDays}–{sh.etaMaxDays} days</div>
+              {context?.settings?.checkout?.codEnabled !== false && <div className='flex items-center gap-2'><LiaMoneyBillWaveSolid className='text-[16px] text-gray-400' /> Cash on Delivery available</div>}
+              {context?.settings?.checkout?.taxInclusiveNote !== false && <div className='text-[11px] text-gray-400'>Prices include all taxes</div>}
             </div>
           </aside>
         </div>

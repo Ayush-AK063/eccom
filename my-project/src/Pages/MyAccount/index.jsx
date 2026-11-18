@@ -96,7 +96,7 @@ const MyAccount = () => {
     if (pw.newPassword !== pw.confirmPassword) return context.openAlertBox("error", "New password and confirm password do not match");
 
     setSavingPw(true);
-    const res = await postData("/api/user/reset-password", { email: user?.email, ...pw, isGoogleUser: !hasPassword });
+    const res = await postData("/api/user/change-password", pw);
     setSavingPw(false);
     if (res?.error !== true) {
       context.openAlertBox("success", res?.message || "Password updated");

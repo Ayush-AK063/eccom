@@ -77,7 +77,7 @@ const ProductItem = ({ item }) => {
                 </div>
 
                 <div className='flex items-baseline gap-2 mt-1 flex-wrap'>
-                    <span className='text-[16px] font-[700] text-gray-900'>{formatPrice(item?.price)}</span>
+                    <span className='text-[16px] font-[700] text-gray-900'>{(item?.variants || []).length > 1 && new Set(item.variants.map((v) => v.price)).size > 1 && <span className='text-[12px] font-[500] text-gray-500 mr-1'>From</span>}{formatPrice(item?.price)}</span>
                     {item?.oldprice > item?.price && (
                         <span className='text-[13px] text-gray-400 line-through'>{formatPrice(item?.oldprice)}</span>
                     )}

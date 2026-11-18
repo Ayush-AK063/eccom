@@ -5,7 +5,7 @@ import { IoClose, IoGitCompareOutline } from 'react-icons/io5';
 import { FiPlus, FiCheck, FiX } from 'react-icons/fi';
 import { useCompare, MAX_COMPARE } from '../../context/CompareContext';
 import { getData } from '../../utils/api';
-import { formatPrice } from '../../utils/formatPrice';
+import { formatPrice, optionFields } from '../../utils/formatPrice';
 import AddToCart from '../../components/AddToCart';
 import WishlistButton from '../../components/WishlistButton';
 import './style.css';
@@ -24,9 +24,6 @@ const ROWS = [
     { key: 'stock', label: 'Availability', value: (p) => (p.countInStock > 0 ? 'in' : 'out'), render: (p) => (p.countInStock > 0
         ? <span className='flex items-center gap-1 text-[#15803d] font-[500]'><FiCheck /> In stock</span>
         : <span className='flex items-center gap-1 text-gray-400 font-[500]'><FiX /> Out of stock</span>) },
-    { key: 'size', label: 'Size', value: (p) => joinOr(p.size), render: (p) => chips(p.size) },
-    { key: 'productRam', label: 'RAM', value: (p) => joinOr(p.productRam), render: (p) => chips(p.productRam) },
-    { key: 'productWeight', label: 'Weight', value: (p) => joinOr(p.productWeight), render: (p) => chips(p.productWeight) },
     { key: 'description', label: 'Description', value: (p) => p.description || null, render: (p) => (p.description ? <div className='text-[13px] text-gray-600 leading-[20px] line-clamp-4'>{p.description}</div> : null) },
 ];
 
@@ -62,7 +59,26 @@ const Compare = () => {
     }, [idsKey]);
 
     const rows = useMemo(() => {
-        return ROWS
+        // Products ki specifications (category template) bhi rows bano — label ke hisaab se
+        const specLabels = [...new Set(compareItems.flatMap((p) => (p.specifications || []).map((x) => x.label)))];
+        const specRows = specLabels.map((label) => {
+            const get = (p) => { const x = (p.specifications || []).find((y) => y.label === label); return x ? `${x.value}${x.unit ? ` ${x.unit}` : ''}` : null };
+            return { key: `spec:${label}`, label, value: get };
+        });
+        // Har product ke option groups (Size, Colour, Storage, Flavour…) → rows
+        const optNames = [...new Set(compareItems.flatMap((p) => optionFields(p).map((g) => g.key)))];
+        const optRows = optNames.map((name) => ({
+            key: `opt:${name}`, label: name,
+            value: (p) => joinOr(optionFields(p).find((g) => g.key === name)?.values),
+            render: (p) => chips(optionFields(p).find((g) => g.key === name)?.values),
+        }));
+        const extra = [
+            { key: 'origin', label: 'Country of origin', value: (p) => p.compliance?.countryOfOrigin || null },
+            { key: 'warranty', label: 'Warranty', value: (p) => (p.policy?.warrantyMonths ? `${p.policy.warrantyMonths} months` : null) },
+            { key: 'returns', label: 'Returns', value: (p) => (p.policy ? (p.policy.returnable === false || p.policy.returnType === 'none' ? 'Not returnable' : `${p.policy.returnDays ?? 7} days`) : null) },
+        ];
+        const all = [...ROWS.slice(0, -1), ...optRows, ...specRows, ...extra, ROWS[ROWS.length - 1]];
+        return all
             .map((row) => {
                 const values = compareItems.map((p) => row.value(p));
                 if (values.every((v) => v === null || v === undefined || v === '')) return null; // khali row mat dikhao

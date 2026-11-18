@@ -57,11 +57,12 @@ const ChangePassword = () => {
       return false;
     }
 
-    postData("/api/user/reset-password", formFields).then((res) => {
+    postData("/api/user/reset-password", { ...formFields, email: formFields.email || localStorage.getItem("userEmail"), resetToken: sessionStorage.getItem("resetToken") || "" }).then((res) => {
       if (!res.error) {
         context.openAlertBox("success", res?.message);
         localStorage.removeItem("userEmail");
         localStorage.removeItem("actionType");
+        sessionStorage.removeItem("resetToken");
         history("/login");
       } else {
         context.openAlertBox("error", res?.message);

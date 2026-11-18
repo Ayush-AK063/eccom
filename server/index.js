@@ -15,12 +15,15 @@ import cartRouter from "./route/cartRoute.js";
 import myListRouter from "./route/myListRoute.js";
 import orderRouter from "./route/orderRoute.js";
 import addressRouter from "./route/addressRoute.js";
-import productRamRouter from "./route/productRamRoute.js";
-import productWeightRouter from "./route/productWeightRoute.js";
-import productSizeRouter from "./route/productSizeRoute.js";
 import homeSlideRouter from "./route/homeSlideRoute.js";
 import blogRouter from "./route/blogRoute.js";
 import reviewRouter from "./route/reviewRoute.js";
+import variantOptionRouter from "./route/variantOptionRoute.js";
+import settingRouter from "./route/settingRoute.js";
+import pageRouter from "./route/pageRoute.js";
+import couponRouter from "./route/couponRoute.js";
+import insightRouter from "./route/insightRoute.js";
+import activityRouter from "./route/activityRoute.js";
 
 const app = express();
 const allowedOrigins = [
@@ -67,12 +70,15 @@ app.use("/api/product", productRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/mylist", myListRouter);
 app.use("/api/address", addressRouter);
-app.use("/api/productRam", productRamRouter);
-app.use("/api/productWeight", productWeightRouter);
-app.use("/api/productSize", productSizeRouter);
 app.use("/api/homeSlide", homeSlideRouter);
+app.use("/api/settings", settingRouter);
+app.use("/api/page", pageRouter);
+app.use("/api/coupon", couponRouter);
+app.use("/api/insights", insightRouter);
+app.use("/api/activity", activityRouter);
 app.use("/api/blog", blogRouter);
 app.use("/api/review", reviewRouter);
+app.use("/api/variantOption", variantOptionRouter);
 app.use("/api/order", orderRouter);
 
 connectDB().then(() => {

@@ -84,3 +84,14 @@
     font-weight: 500;
     color: #9ca3af;
 }
+
+.vPicker__opt.is-na,
+.vPicker__opt:disabled.is-na {
+    color: #c0c4cc;
+    text-decoration: line-through;
+    cursor: not-allowed;
+    background: #fafafa;
+}
+
+.vPicker__opt--swatch { display: inline-flex; align-items: center; gap: 6px; }
+.vPicker__dot { width: 12px; height: 12px; border-radius: 9999px; border: 1px solid rgba(0,0,0,.15); flex-shrink: 0; }

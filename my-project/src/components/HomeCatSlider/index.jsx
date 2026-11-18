@@ -12,7 +12,7 @@ import { FiArrowRight, FiChevronLeft, FiChevronRight, FiGrid } from 'react-icons
 // Har card ko halka alag tint — premium storefront look
 const TINTS = ['#FFF1F0', '#EEF6FF', '#F1FAF3', '#FFF8EB', '#F5F0FF', '#EFFAFA', '#FFF0F6', '#F4F6F8'];
 
-const HomeCatSlider = () => {
+const HomeCatSlider = ({ title = "Shop by Category", subtitle }) => {
   const context = useContext(MyContext);
   const categories = context?.catData || [];
   const swiperRef = useRef(null);
@@ -28,7 +28,8 @@ const HomeCatSlider = () => {
         {/* Header */}
         <div className='flex items-end justify-between mb-4'>
           <div>
-            <h2 className='text-[20px] font-[700] leading-tight text-gray-900'>Shop by Category</h2>
+            {title && <h2 className='text-[20px] font-[700] leading-tight text-gray-900'>{title}</h2>}
+            {subtitle && <p className='text-[13px] text-gray-500 mt-1'>{subtitle}</p>}
           </div>
           <div className='hidden sm:flex items-center gap-2'>
             <button

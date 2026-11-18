@@ -1,14 +1,9 @@
+import { logActivity } from "../utils/activity.js";
 import CartProduct from "../models/CartProduct.js";
 import User from "../models/User.js";
 import Product from "../models/Product.js";
 
-const VARIANT_FIELDS = [
-  ["size", "size"],
-  ["productRam", "RAM"],
-  ["productWeight", "weight"],
-];
-
-const toArr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean);
+import { findVariant, hasVariantMatrix, maxQtyFor, selectionFromBody, selectionOf, validateSelection, legacyFields, sameSelection } from "../utils/variants.js";
 
 export const addToCartItemController = async (req, res) => {
   try {
@@ -28,31 +23,25 @@ export const addToCartItemController = async (req, res) => {
       return res.status(404).json({ message: "Product not found", error: true, success: false });
     }
 
-    // Product mein jis variant ke options hain, wo chunna zaroori hai aur valid hona chahiye
-    const variant = {};
-    for (const [field, label] of VARIANT_FIELDS) {
-      const options = toArr(product[field]);
-      const chosen = (req.body[field] || "").toString().trim();
-      if (options.length > 0) {
-        if (!chosen) {
-          return res.status(400).json({ message: `Please select ${label}`, error: true, success: false });
-        }
-        if (!options.includes(chosen)) {
-          return res.status(400).json({ message: `Invalid ${label}`, error: true, success: false });
-        }
-      }
-      variant[field] = options.length > 0 ? chosen : "";
+    // Har option group ka value chuna hona chahiye aur valid
+    const sel = selectionFromBody(req.body, product);
+    const bad = validateSelection(product, sel);
+    if (bad) return res.status(400).json({ message: bad, error: true, success: false });
+
+    // Variant matrix ho to ye combination exist kare aur stock ho
+    if (hasVariantMatrix(product) && !findVariant(product, sel)) {
+      return res.status(400).json({ message: "This combination is not available", error: true, success: false });
+    }
+    if (maxQtyFor(product, sel) < 1) {
+      return res.status(400).json({ message: "This option is out of stock", error: true, success: false });
     }
 
-    const checkItemCart = await CartProduct.findOne({ userId, productId, ...variant });
-
+    const mine = await CartProduct.find({ userId, productId });
+    const checkItemCart = mine.find((c) => sameSelection(selectionOf(c, product), sel));
     if (checkItemCart) {
-      return res.status(400).json({
-        message: "Product already in cart",
-        error: true,
-        success: false,
-      });
+      return res.status(400).json({ message: "Product already in cart", error: true, success: false });
     }
+    const variant = { ...legacyFields(sel), options: sel };
 
     const cartItem = new CartProduct({
       quantity: 1,
@@ -62,6 +51,7 @@ export const addToCartItemController = async (req, res) => {
     });
 
     const save = await cartItem.save();
+    logActivity(userId, "cart_add", { productId, name: product.name, options: sel }, req);
 
     await User.updateOne(
       { _id: userId },
@@ -132,36 +122,33 @@ export const updateCartItemQtyController = async (req, res) => {
       }
     }
 
-    // Variant (jo field bheji hai wahi badlo, valid option hona chahiye)
-    const variant = {};
-    for (const [field, label] of VARIANT_FIELDS) {
-      const options = toArr(product[field]);
-      if (req.body[field] === undefined) {
-        variant[field] = cartItem[field] || "";
-        continue;
-      }
-      const chosen = String(req.body[field] || "").trim();
-      if (options.length > 0 && !options.includes(chosen)) {
-        return res.status(400).json({ message: `Invalid ${label}`, error: true, success: false });
-      }
-      variant[field] = options.length > 0 ? chosen : "";
+    // Option badalna: body.options (poora/aadha) ya purana single field (size / productRam …)
+    const current = selectionOf(cartItem, product);
+    const incoming = selectionFromBody({ ...req.body, options: { ...current, ...(req.body.options || {}) } }, product);
+    // Body mein na aaya group → purana value
+    const sel = {};
+    for (const k of Object.keys(incoming)) sel[k] = incoming[k] || current[k] || "";
+    const bad = validateSelection(product, sel);
+    if (bad) return res.status(400).json({ message: bad, error: true, success: false });
+
+    const variantChanged = !sameSelection(current, sel);
+    const others = variantChanged ? await CartProduct.find({ userId, productId: cartItem.productId, _id: { $ne: cartItem._id } }) : [];
+    const duplicate = others.find((c) => sameSelection(selectionOf(c, product), sel)) || null;
+
+    if (hasVariantMatrix(product) && !findVariant(product, sel)) {
+      return res.status(400).json({ message: "This combination is not available", error: true, success: false });
     }
-
-    const variantChanged = Object.keys(variant).some((f) => (cartItem[f] || "") !== variant[f]);
-
-    // Same product + same naya variant wala doosra item?
-    const duplicate = variantChanged
-      ? await CartProduct.findOne({ userId, productId: cartItem.productId, ...variant, _id: { $ne: cartItem._id } })
-      : null;
-
     const finalQty = duplicate ? duplicate.quantity + quantity : quantity;
-    if (product.countInStock > 0 && finalQty > product.countInStock) {
+    const maxQty = maxQtyFor(product, sel);
+    if (finalQty > maxQty) {
+      const limited = product.maxOrderQty > 0 && maxQty === product.maxOrderQty;
       return res.status(400).json({
-        message: `Only ${product.countInStock} items in stock`,
+        message: maxQty < 1 ? "This option is out of stock" : limited ? `Max ${maxQty} per order` : `Only ${maxQty} items in stock`,
         error: true,
         success: false,
       });
     }
+    const variant = { ...legacyFields(sel), options: sel };
 
     if (duplicate) {
       duplicate.quantity = finalQty;
@@ -177,6 +164,7 @@ export const updateCartItemQtyController = async (req, res) => {
 
     cartItem.quantity = quantity;
     Object.assign(cartItem, variant);
+    cartItem.markModified("options");
     await cartItem.save();
 
     return res.status(200).json({

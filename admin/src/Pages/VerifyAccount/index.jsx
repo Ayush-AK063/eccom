@@ -41,6 +41,7 @@ const VerifyAccount = () => {
       }).then((res) => {
         if (res?.error === false) {
           context.openAlertBox("success", res?.message);
+          sessionStorage.setItem("resetToken", res?.resetToken || "");
           history("/change-password");
         } else {
           context.openAlertBox("error", res?.message);

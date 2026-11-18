@@ -1,12 +1,13 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-const generateRefreshToken = async (userId) => {
+// remember = "Remember me" tick → 30 din, warna 1 din (browser band hone pe client bhi logout karta hai)
+const generateRefreshToken = async (userId, remember = true) => {
   const token = await jwt.sign(
-    { id: userId },
+    { id: userId, rem: !!remember },
     process.env.JWT_SECRET_REFRESH_TOKEN,
     {
-      expiresIn: "7d",
+      expiresIn: remember ? "30d" : "1d",
     }
   );
 

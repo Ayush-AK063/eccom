@@ -1,844 +1,257 @@
 import React, { useContext, useEffect, useState } from "react";
-import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from "@mui/material";
+import { Link } from "react-router-dom";
+import { CircularProgress } from "@mui/material";
+import { FiCamera, FiCheck, FiEye, FiEyeOff, FiLock, FiMail, FiShield, FiLogOut, FiSettings, FiExternalLink, FiCalendar, FiClock } from "react-icons/fi";
+import { FcGoogle } from "react-icons/fc";
 import { MyContext } from "../../App";
-import { useNavigate } from "react-router-dom";
-import { putData, postData, putDataForImage, getData, deleteData } from "../../utils/api";
-import { Collapse } from "react-collapse";
-import { RiFolderUploadFill } from "react-icons/ri";
-import { FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
-import { IoCloseSharp } from "react-icons/io5";
+import { putData, postData, putDataForImage, getData } from "../../utils/api";
+import { ActivityRow } from "../Activity/describe";
+import { STORE_URL } from "../Settings/ui";
+import "../Products/style.css";
+
+const fmt = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—");
+const ago = (d) => {
+  if (!d) return "—";
+  const h = (Date.now() - new Date(d)) / 36e5;
+  if (h < 1) return "Less than an hour ago";
+  if (h < 24) return `${Math.round(h)} hours ago`;
+  return fmt(d);
+};
+const strength = (p) => {
+  let n = 0;
+  if (p.length >= 8) n++;
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) n++;
+  if (/\d/.test(p)) n++;
+  if (/[^A-Za-z0-9]/.test(p)) n++;
+  return [["Too short", "#dc2626"], ["Weak", "#f97316"], ["Okay", "#eab308"], ["Good", "#22c55e"], ["Strong", "#059669"]][p.length < 6 ? 0 : Math.max(1, n)];
+};
+
+const PwInput = ({ value, onChange, placeholder, autoComplete }) => {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input type={show ? "text" : "password"} className="pdInput pr-10" value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
+      <button type="button" className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-900" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"}>
+        {show ? <FiEyeOff /> : <FiEye />}
+      </button>
+    </div>
+  );
+};
 
 const MyAccount = () => {
-    const [isLoading, setIsLoading] = useState(false);
-    const [isLoading2, setIsLoading2] = useState(false);
-    const [isChangedPasswordFormShow, setIsChangedPasswordFormShow] = useState(false);
-    const [isAddAddressFormShow, setIsAddAddressFormShow] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [isLoading3, setIsLoading3] = useState(false);
-    const [previews, setPreviews] = useState([]);
-    const [addressList, setAddressList] = useState([]);
+  const context = useContext(MyContext);
+  const user = context?.userData || {};
+  const [form, setForm] = useState({ name: "", mobile: "", country: "" });
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [pw, setPw] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [activity, setActivity] = useState(null);
 
-    // Address Action States
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-    const [viewData, setViewData] = useState(null);
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [deleteId, setDeleteId] = useState(null);
-    const [editId, setEditId] = useState(null);
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (!user._id) return;
+    setForm({ name: user.name || "", mobile: user.mobile || "", country: user.country || "" });
+    getData(`/api/activity?userId=${user._id}&limit=8`).then((r) => setActivity(r?.data || []));
+  }, [user._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const [formFields, setFormFields] = useState({
-        name: "",
-        email: "",
-        mobile: "",
-        country: "",
-    });
+  const dirty = form.name !== (user.name || "") || form.mobile !== (user.mobile || "") || form.country !== (user.country || "");
+  const hasPassword = !!user.hasPassword;
+  const google = !!(user.loginWithGoogle || user.googleId);
 
-    const [changePassword, setChangePassword] = useState({
-        email: "",
-        oldPassword: "",
-        newPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-    });
+  const pickAvatar = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!["image/jpeg", "image/png", "image/webp", "image/jpg"].includes(f.type)) return context.openAlertBox("error", "Please choose a JPG, PNG or WEBP image");
+    if (f.size > 3 * 1024 * 1024) return context.openAlertBox("error", "Image must be under 3 MB");
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("avatar", f);
+    const res = await putDataForImage("/api/user/user-avatar", fd);
+    setUploading(false);
+    if (res?.avatar) { context.setUserData({ ...user, avatar: res.avatar }); context.openAlertBox("success", "Profile photo updated"); }
+    else context.openAlertBox("error", res?.message || "Upload failed");
+  };
 
-    const [addressFields, setAddressFields] = useState({
-        name: "",
-        mobile: "",
-        pincode: "",
-        flatHouse: "",
-        areaStreet: "",
-        landmark: "",
-        townCity: "",
-        state: "",
-        country: "India",
-        isDefault: false,
-    });
+  const saveProfile = async (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return context.openAlertBox("error", "Please enter your name");
+    if (form.mobile && !/^\+?[\d\s-]{7,15}$/.test(form.mobile.trim())) return context.openAlertBox("error", "Please enter a valid phone number");
+    setSaving(true);
+    const res = await putData(`/api/user/${user._id}`, { name: form.name.trim(), mobile: form.mobile.trim(), country: form.country.trim() });
+    setSaving(false);
+    if (res?.error !== true) { context.setUserData({ ...user, ...form }); context.openAlertBox("success", "Profile saved"); }
+    else context.openAlertBox("error", res?.message || "Could not save profile");
+  };
 
-    const context = useContext(MyContext);
-    const history = useNavigate();
+  const savePassword = async (e) => {
+    e.preventDefault();
+    if (hasPassword && !pw.oldPassword) return context.openAlertBox("error", "Please enter your current password");
+    if (pw.newPassword.length < 6) return context.openAlertBox("error", "New password must be at least 6 characters");
+    if (pw.newPassword !== pw.confirmPassword) return context.openAlertBox("error", "The new passwords don't match");
+    setPwSaving(true);
+    const res = await postData("/api/user/change-password", pw);
+    setPwSaving(false);
+    if (res?.error !== true) {
+      context.openAlertBox("success", res?.message || "Password updated");
+      context.setUserData({ ...user, hasPassword: true });
+      setPw({ oldPassword: "", newPassword: "", confirmPassword: "" });
+      setPwOpen(false);
+    } else context.openAlertBox("error", res?.message || "Could not change password");
+  };
 
-    useEffect(() => {
-        if (context?.userData) {
-            setFormFields({
-                name: context?.userData?.name || "",
-                email: context?.userData?.email || "",
-                mobile: context?.userData?.mobile || "",
-                country: context?.userData?.country || "",
-            });
+  const st = strength(pw.newPassword);
 
-            setChangePassword((prev) => ({
-                ...prev,
-                email: context?.userData?.email || "",
-            }));
+  return (
+    <div className="flex flex-col gap-5 pb-10 max-w-[1100px]">
+      <div>
+        <h1 className="text-[22px] font-[700] text-gray-900 tracking-tight">My profile</h1>
+        <div className="text-[14px] text-gray-500">Your admin account, sign-in and security.</div>
+      </div>
 
-            const userAvatar = [];
-            if (context?.userData?.avatar) {
-                userAvatar.push(context?.userData?.avatar);
-            }
-            setPreviews(userAvatar);
-
-            fetchAddresses(context?.userData?._id);
-        }
-    }, [context?.userData]);
-
-    const fetchAddresses = (userId) => {
-        if (!userId) return;
-        getData(`/api/address/${userId}`).then((res) => {
-            if (res?.error === false) {
-                setAddressList(res.data);
-            }
-        });
-    };
-
-    const onChangeInput = (e) => {
-        const { name, value } = e.target;
-        setFormFields({
-            ...formFields,
-            [name]: value,
-        });
-    };
-
-    const onChangePasswordInput = (e) => {
-        const { name, value } = e.target;
-        setChangePassword({
-            ...changePassword,
-            [name]: value,
-        });
-    };
-
-    const onChangeAddressInput = (e) => {
-        const { name, value } = e.target;
-        setAddressFields({
-            ...addressFields,
-            [name]: value,
-        });
-    };
-
-    const formdata = new FormData();
-
-    const onChangeFile = async (e, apiEndPoint) => {
-        try {
-            const files = e.target.files;
-            const allowedTypes = [
-                "image/jpg",
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-            ];
-
-            setUploading(true);
-
-            for (let file of files) {
-                if (allowedTypes.includes(file.type)) {
-                    formdata.append(`avatar`, file);
-
-                    putDataForImage("/api/user/user-avatar", formdata, {
-                        withCredentials: true,
-                    }).then((res) => {
-                        setUploading(false);
-                        if (res?.message === "Image uploaded successfully" || res?.avatar) {
-                            let avatar = [];
-                            avatar.push(res?.avatar);
-                            setPreviews(avatar);
-                            context.setUserData({
-                                ...context.userData,
-                                avatar: res?.avatar
-                            });
-                            context.openAlertBox("success", "Profile picture updated");
-                        }
-                    });
-                } else {
-                    context.openAlertBox(
-                        "error",
-                        "Please select a valid JPG/JPEG/PNG/WEBP image file."
-                    );
-                    setUploading(false);
-                    return false;
-                }
-            }
-        } catch (error) {
-            console.log(error);
-            setUploading(false);
-        }
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        setIsLoading(true);
-
-        if (formFields.name === "") {
-            context.openAlertBox("error", "Name field is required");
-            setIsLoading(false);
-            return;
-        }
-
-        if (formFields.mobile === "") {
-            context.openAlertBox("error", "Phone number is required");
-            setIsLoading(false);
-            return;
-        }
-
-        if (formFields.country === "") {
-            context.openAlertBox("error", "Country field is required");
-            setIsLoading(false);
-            return;
-        }
-
-        putData(`/api/user/${context?.userData?._id}`, formFields, { withCredentials: true }).then(
-            (res) => {
-                setIsLoading(false);
-                if (res?.error !== true) {
-                    context.openAlertBox("success", "Profile updated successfully");
-                    context.setUserData({
-                        ...context.userData,
-                        name: formFields.name,
-                        mobile: formFields.mobile,
-                        country: formFields.country
-                    });
-                } else {
-                    context.openAlertBox("error", res?.message || "Failed to update profile");
-                }
-            }
-        );
-    };
-
-    const handleEditBtnClick = (addr) => {
-        setEditId(addr._id);
-        setAddressFields({
-            name: addr.name,
-            mobile: addr.mobile,
-            pincode: addr.pincode,
-            flatHouse: addr.flatHouse,
-            areaStreet: addr.areaStreet,
-            landmark: addr.landmark,
-            townCity: addr.townCity,
-            state: addr.state,
-            country: addr.country,
-            isDefault: addr.isDefault || false,
-        });
-        setIsAddAddressFormShow(true);
-        // Scroll to form smoothly
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleDeleteBtnClick = (id) => {
-        setDeleteId(id);
-        setIsDeleteModalOpen(true);
-    };
-
-    const handleViewBtnClick = (addr) => {
-        setViewData(addr);
-        setIsViewModalOpen(true);
-    };
-
-    const confirmDeleteAddress = () => {
-        setIsLoading3(true);
-        deleteData(`/api/address/${deleteId}`).then((res) => {
-            setIsLoading3(false);
-            if (res?.error === false) {
-                context.openAlertBox("success", "Address deleted successfully");
-                setIsDeleteModalOpen(false);
-                setDeleteId(null);
-                fetchAddresses(context?.userData?._id);
-            } else {
-                context.openAlertBox("error", res?.message || "Failed to delete address");
-            }
-        });
-    };
-
-    const handlePasswordChange = (e) => {
-        e.preventDefault();
-        setIsLoading2(true);
-
-        if (changePassword.oldPassword === "") {
-            context.openAlertBox("error", "Old password is required");
-            setIsLoading2(false);
-            return;
-        }
-
-        if (changePassword.newPassword === "") {
-            context.openAlertBox("error", "New password is required");
-            setIsLoading2(false);
-            return;
-        }
-
-        if (changePassword.confirmPassword === "") {
-            context.openAlertBox("error", "Confirm password is required");
-            setIsLoading2(false);
-            return;
-        }
-
-        if (changePassword.newPassword !== changePassword.confirmPassword) {
-            context.openAlertBox("error", "New password and confirm password do not match");
-            setIsLoading2(false);
-            return;
-        }
-
-        postData(`/api/user/reset-password`, changePassword, { withCredentials: true }).then(
-            (res) => {
-                setIsLoading2(false);
-                if (res?.error !== true) {
-                    context.openAlertBox("success", "Password changed successfully");
-                    setChangePassword({
-                        ...changePassword,
-                        oldPassword: "",
-                        newPassword: "",
-                        confirmPassword: "",
-                    });
-                    setIsChangedPasswordFormShow(false);
-                } else {
-                    context.openAlertBox("error", res?.message || "Failed to change password");
-                }
-            }
-        );
-    };
-
-    const handleAddAddress = (e) => {
-        e.preventDefault();
-        setIsLoading3(true);
-
-        const requiredFields = ["name", "mobile", "pincode", "flatHouse", "areaStreet", "townCity", "state", "country"];
-        for (let field of requiredFields) {
-            if (addressFields[field] === "") {
-                context.openAlertBox("error", `Please fill all required fields: ${field} is missing`);
-                setIsLoading3(false);
-                return;
-            }
-        }
-
-        const payload = {
-            ...addressFields,
-            userId: context?.userData?._id
-        };
-
-        if (editId) {
-            // Update mode
-            putData(`/api/address/${editId}`, payload, { withCredentials: true }).then(
-                (res) => {
-                    setIsLoading3(false);
-                    if (res?.error !== true) {
-                        context.openAlertBox("success", "Address updated successfully");
-                        setEditId(null);
-                        setAddressFields({
-                            name: "",
-                            mobile: "",
-                            pincode: "",
-                            flatHouse: "",
-                            areaStreet: "",
-                            landmark: "",
-                            townCity: "",
-                            state: "",
-                            country: "India",
-                            isDefault: false,
-                        });
-                        setIsAddAddressFormShow(false);
-                        fetchAddresses(context?.userData?._id);
-                    } else {
-                        context.openAlertBox("error", res?.message || "Failed to update address");
-                    }
-                }
-            );
-        } else {
-            // Create mode
-            postData(`/api/address/add`, payload, { withCredentials: true }).then(
-                (res) => {
-                    setIsLoading3(false);
-                    if (res?.error !== true) {
-                        context.openAlertBox("success", "Address added successfully");
-                        setAddressFields({
-                            name: "",
-                            mobile: "",
-                            pincode: "",
-                            flatHouse: "",
-                            areaStreet: "",
-                            landmark: "",
-                            townCity: "",
-                            state: "",
-                            country: "India",
-                            isDefault: false,
-                        });
-                        setIsAddAddressFormShow(false);
-                        fetchAddresses(context?.userData?._id);
-                    } else {
-                        context.openAlertBox("error", res?.message || "Failed to add address");
-                    }
-                }
-            );
-        }
-    };
-
-    return (
-        <section className="p-8 pb-0">
-            <div className="card bg-white shadow-md rounded-md p-8 mb-8">
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[20px] font-[600]">My Account</h2>
-                    <div className="flex gap-3">
-                        <Button
-                            className="btn-blue btn-sm"
-                            onClick={() => {
-                                if (isAddAddressFormShow && editId) {
-                                    setEditId(null);
-                                    setAddressFields({
-                                        name: "",
-                                        mobile: "",
-                                        pincode: "",
-                                        flatHouse: "",
-                                        areaStreet: "",
-                                        landmark: "",
-                                        townCity: "",
-                                        state: "",
-                                        country: "India",
-                                        isDefault: false,
-                                    });
-                                }
-                                setIsAddAddressFormShow(!isAddAddressFormShow);
-                            }}
-                        >
-                            {isAddAddressFormShow ? "Close Address Form" : "Add Address"}
-                        </Button>
-                        <Button
-                            className="btn-blue btn-sm"
-                            onClick={() => setIsChangedPasswordFormShow(!isChangedPasswordFormShow)}
-                        >
-                            {isChangedPasswordFormShow ? "Close Change Password" : "Change Password"}
-                        </Button>
-                    </div>
-                </div>
-                <hr />
-                <br />
-
-                <div className="flex flex-col items-center justify-center w-full mb-8">
-                    <div className="w-[110px] h-[110px] mb-4 rounded-full relative overflow-hidden group flex items-center justify-center bg-gray-200">
-                        {uploading === true ? (
-                            <CircularProgress color="inherit" />
-                        ) : (
-                            <>
-                                {previews && previews.length > 0 && previews[0] ? (
-                                    previews.map((img, index) => (
-                                        <img
-                                            src={img}
-                                            key={index}
-                                            alt="profile"
-                                            className="object-cover w-full h-full"
-                                        />
-                                    ))
-                                ) : (
-                                    <img
-                                        src="https://cdn-icons-png.flaticon.com/512/149/149071.png"
-                                        alt="default"
-                                        className="object-cover w-full h-full"
-                                    />
-                                )}
-                            </>
-                        )}
-
-                        <div className="absolute flex items-center justify-center cursor-pointer top-0 left-0 z-50 w-full h-full overlay opacity-0 transition-all bg-[rgba(0,0,0,0.7)] group-hover:opacity-100">
-                            <RiFolderUploadFill className="text-[#fff] text-[22px]" />
-                            <input
-                                type="file"
-                                onChange={(e) => onChangeFile(e, "/api/user/user-avatar")}
-                                name="avatar"
-                                accept="image/*"
-                                className="absolute top-0 left-0 w-full h-full opacity-0"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <form className="form" onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-2 gap-5 mb-5">
-                        <div className="col">
-                            <h3 className="text-[14px] font-[500] mb-1">Full Name</h3>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formFields.name}
-                                onChange={onChangeInput}
-                                className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                            />
-                        </div>
-
-                        <div className="col">
-                            <h3 className="text-[14px] font-[500] mb-1">Email</h3>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formFields.email}
-                                disabled
-                                className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none rounded-sm p-3 text-sm bg-[#e9ecef] cursor-not-allowed"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-5 mb-8">
-                        <div className="col">
-                            <h3 className="text-[14px] font-[500] mb-1">Phone Number</h3>
-                            <input
-                                type="text"
-                                name="mobile"
-                                value={formFields.mobile}
-                                onChange={onChangeInput}
-                                className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                            />
-                        </div>
-
-                        <div className="col">
-                            <h3 className="text-[14px] font-[500] mb-1">Country</h3>
-                            <input
-                                type="text"
-                                name="country"
-                                value={formFields.country}
-                                onChange={onChangeInput}
-                                className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-end gap-4 w-full">
-                        <Button
-                            type="submit"
-                            className="btn-blue btn-lg !w-full"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? <CircularProgress size={24} color="inherit" /> : "Update Profile"}
-                        </Button>
-                    </div>
-                </form>
+      {/* Header */}
+      <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
+        <div className="h-[88px] bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#374151]" />
+        <div className="px-5 pb-5 flex flex-wrap items-end gap-4 -mt-10">
+          <label className="relative w-[92px] h-[92px] rounded-full border-4 border-white bg-gray-100 overflow-hidden cursor-pointer group shrink-0 shadow-sm" title="Change photo">
+            {user.avatar
+              ? <img src={user.avatar} alt="" className="w-full h-full object-cover" />
+              : <span className="w-full h-full flex items-center justify-center bg-[#111827] text-white text-[30px] font-[700]">{(user.name || "A")[0].toUpperCase()}</span>}
+            <span className={`absolute inset-0 flex items-center justify-center bg-black/50 text-white transition-opacity ${uploading ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+              {uploading ? <CircularProgress size={22} color="inherit" /> : <FiCamera className="text-[20px]" />}
+            </span>
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pickAvatar} disabled={uploading} />
+          </label>
+          <div className="flex-1 min-w-[200px] pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-[20px] font-[700] text-gray-900">{user.name || "Admin"}</h2>
+              <span className="pdBadge !bg-[#111827] !text-white"><FiShield /> Admin</span>
+              {user.verify_email && <span className="pdBadge pdBadge--green"><FiCheck /> Verified</span>}
             </div>
+            <div className="text-[13px] text-gray-500 flex items-center gap-1.5"><FiMail className="text-gray-400" /> {user.email}</div>
+          </div>
+          <div className="flex gap-2 pb-1">
+            <a className="pdBtn pdBtn--light" href={STORE_URL} target="_blank" rel="noreferrer"><FiExternalLink /> View store</a>
+            <button className="pdBtn pdBtn--light hover:!border-[#ef4444] hover:!text-[#dc2626]" onClick={() => context.logout()}><FiLogOut /> Log out</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 border-t border-gray-100">
+          {[
+            [FiCalendar, "Member since", fmt(user.createdAt)],
+            [FiClock, "Last sign-in", ago(user.last_login_date)],
+            [FiLock, "Password", hasPassword ? "Set" : "Not set"],
+            [FcGoogle, "Google sign-in", google ? "Connected" : "Not connected"],
+          ].map(([Icon, l, v]) => (
+            <div key={l} className="px-5 py-3 border-r border-gray-100 last:border-0 flex items-center gap-3">
+              <Icon className="text-gray-400 shrink-0" />
+              <div className="min-w-0"><div className="text-[11px] text-gray-500">{l}</div><div className="text-[13px] font-[600] text-gray-900 truncate">{v}</div></div>
+            </div>
+          ))}
+        </div>
+      </div>
 
-            <Collapse isOpened={isChangedPasswordFormShow}>
-                <div className="card bg-white shadow-md rounded-md p-8 mb-8">
-                    <h2 className="text-[20px] font-[600] mb-4">Change Password</h2>
-                    <hr />
-                    <br />
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-5 items-start">
+        <div className="flex flex-col gap-5">
+          <form onSubmit={saveProfile} className="pdCard">
+            <div className="pdCard__head"><div className="pdCard__title">Personal details</div><div className="pdCard__sub">Shown to other admins and in order emails you send.</div></div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="pdLabel">Full name <em>*</em></label>
+                <input className="pdInput" value={form.name} maxLength={80} onChange={(e) => setForm({ ...form, name: e.target.value })} autoComplete="name" />
+              </div>
+              <div>
+                <label className="pdLabel">Email</label>
+                <input className="pdInput" value={user.email || ""} disabled />
+                <div className="pdHint">Your sign-in email can't be changed here.</div>
+              </div>
+              <div>
+                <label className="pdLabel">Phone</label>
+                <input className="pdInput" value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} placeholder="+91 98765 43210" autoComplete="tel" />
+              </div>
+              <div>
+                <label className="pdLabel">Country</label>
+                <input className="pdInput" value={form.country} maxLength={60} onChange={(e) => setForm({ ...form, country: e.target.value })} placeholder="India" autoComplete="country-name" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-5">
+              <button className="pdBtn pdBtn--dark" disabled={!dirty || saving}>{saving ? <CircularProgress size={16} color="inherit" /> : "Save changes"}</button>
+              {dirty && <button type="button" className="pdBtn pdBtn--light" onClick={() => setForm({ name: user.name || "", mobile: user.mobile || "", country: user.country || "" })}>Discard</button>}
+            </div>
+          </form>
 
-                    <form className="form" onSubmit={handlePasswordChange}>
-                        <div className="grid grid-cols-2 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Old Password</h3>
-                                <input
-                                    type="password"
-                                    name="oldPassword"
-                                    value={changePassword.oldPassword}
-                                    onChange={onChangePasswordInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">New Password</h3>
-                                <input
-                                    type="password"
-                                    name="newPassword"
-                                    value={changePassword.newPassword}
-                                    onChange={onChangePasswordInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-5 mb-8">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Confirm Password</h3>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    value={changePassword.confirmPassword}
-                                    onChange={onChangePasswordInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-4 w-full">
-                            <Button
-                                type="submit"
-                                className="btn-blue btn-lg !w-full"
-                                disabled={isLoading2}
-                            >
-                                {isLoading2 ? <CircularProgress size={24} color="inherit" /> : "Save Changes"}
-                            </Button>
-                        </div>
-                    </form>
+          <div className="pdCard">
+            <div className="pdCard__head flex items-start justify-between gap-3">
+              <div><div className="pdCard__title">Password & security</div><div className="pdCard__sub">Use a strong password you don't use anywhere else.</div></div>
+              {!pwOpen && <button className="pdBtn pdBtn--light !h-9" onClick={() => setPwOpen(true)}><FiLock /> {hasPassword ? "Change password" : "Set a password"}</button>}
+            </div>
+            {!pwOpen ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-md border border-gray-100">
+                  <FiLock className="text-gray-400" />
+                  <div className="flex-1"><div className="text-[13px] font-[600] text-gray-900">Email & password</div><div className="text-[12px] text-gray-500">{hasPassword ? "You can sign in with your email and password." : "No password yet — set one to sign in without Google."}</div></div>
+                  <span className={`pdBadge ${hasPassword ? "pdBadge--green" : ""}`}>{hasPassword ? "On" : "Off"}</span>
                 </div>
-            </Collapse>
-
-            <Collapse isOpened={isAddAddressFormShow}>
-                <div className="card bg-white shadow-md rounded-md p-8 mb-8" id="address-form">
-                    <h2 className="text-[20px] font-[600] mb-4">
-                        {editId ? "Edit Address" : "Add Address"}
-                    </h2>
-                    <hr />
-                    <br />
-
-                    <form className="form" onSubmit={handleAddAddress}>
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Country/Region</h3>
-                                <select
-                                    name="country"
-                                    value={addressFields.country}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm px-3 text-sm bg-[#fafafa]"
-                                >
-                                    <option value="India">India</option>
-                                    <option value="USA">USA</option>
-                                    <option value="UK">UK</option>
-                                    <option value="Canada">Canada</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Full name (First and Last name)</h3>
-                                <input
-                                    type="text"
-                                    name="name"
-                                    value={addressFields.name}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Mobile number</h3>
-                                <input
-                                    type="text"
-                                    name="mobile"
-                                    value={addressFields.mobile}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                                <p className="text-[12px] text-gray-500 mt-1">May be used to assist delivery</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Pincode</h3>
-                                <input
-                                    type="text"
-                                    name="pincode"
-                                    value={addressFields.pincode}
-                                    onChange={onChangeAddressInput}
-                                    placeholder="6 digits [0-9] PIN code"
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Flat, House no., Building, Company, Apartment</h3>
-                                <input
-                                    type="text"
-                                    name="flatHouse"
-                                    value={addressFields.flatHouse}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Area, Street, Sector, Village</h3>
-                                <input
-                                    type="text"
-                                    name="areaStreet"
-                                    value={addressFields.areaStreet}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-5">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Landmark</h3>
-                                <input
-                                    type="text"
-                                    name="landmark"
-                                    value={addressFields.landmark}
-                                    onChange={onChangeAddressInput}
-                                    placeholder="E.g. near apollo hospital"
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-5 mb-8">
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">Town/City</h3>
-                                <input
-                                    type="text"
-                                    name="townCity"
-                                    value={addressFields.townCity}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm p-3 text-sm bg-[#fafafa]"
-                                />
-                            </div>
-                            <div className="col">
-                                <h3 className="text-[14px] font-[500] mb-1">State</h3>
-                                <select
-                                    name="state"
-                                    value={addressFields.state}
-                                    onChange={onChangeAddressInput}
-                                    className="w-full h-[40px] border border-[rgba(0,0,0,0.2)] focus:outline-none focus:border-[rgba(0,0,0,0.4)] rounded-sm px-3 text-sm bg-[#fafafa]"
-                                >
-                                    <option value="">Choose a state</option>
-                                    <option value="Andhra Pradesh">Andhra Pradesh</option>
-                                    <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-                                    <option value="Assam">Assam</option>
-                                    <option value="Bihar">Bihar</option>
-                                    <option value="Chhattisgarh">Chhattisgarh</option>
-                                    <option value="Goa">Goa</option>
-                                    <option value="Gujarat">Gujarat</option>
-                                    <option value="Haryana">Haryana</option>
-                                    <option value="Himachal Pradesh">Himachal Pradesh</option>
-                                    <option value="Jharkhand">Jharkhand</option>
-                                    <option value="Karnataka">Karnataka</option>
-                                    <option value="Kerala">Kerala</option>
-                                    <option value="Madhya Pradesh">Madhya Pradesh</option>
-                                    <option value="Maharashtra">Maharashtra</option>
-                                    <option value="Manipur">Manipur</option>
-                                    <option value="Meghalaya">Meghalaya</option>
-                                    <option value="Mizoram">Mizoram</option>
-                                    <option value="Nagaland">Nagaland</option>
-                                    <option value="Odisha">Odisha</option>
-                                    <option value="Punjab">Punjab</option>
-                                    <option value="Rajasthan">Rajasthan</option>
-                                    <option value="Sikkim">Sikkim</option>
-                                    <option value="Tamil Nadu">Tamil Nadu</option>
-                                    <option value="Telangana">Telangana</option>
-                                    <option value="Tripura">Tripura</option>
-                                    <option value="Uttar Pradesh">Uttar Pradesh</option>
-                                    <option value="Uttarakhand">Uttarakhand</option>
-                                    <option value="West Bengal">West Bengal</option>
-                                    <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
-                                    <option value="Chandigarh">Chandigarh</option>
-                                    <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
-                                    <option value="Delhi">Delhi</option>
-                                    <option value="Jammu and Kashmir">Jammu and Kashmir</option>
-                                    <option value="Ladakh">Ladakh</option>
-                                    <option value="Lakshadweep">Lakshadweep</option>
-                                    <option value="Puducherry">Puducherry</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-5 mb-8">
-                            <div className="col flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    name="isDefault"
-                                    id="adminIsDefault"
-                                    checked={addressFields.isDefault}
-                                    onChange={(e) => setAddressFields({ ...addressFields, isDefault: e.target.checked })}
-                                    className="w-[18px] h-[18px] cursor-pointer"
-                                />
-                                <label htmlFor="adminIsDefault" className="text-[15px] font-[500] cursor-pointer text-gray-800 tracking-wide">Make this my default address</label>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center justify-end gap-4 w-full">
-                            <Button
-                                type="submit"
-                                className="btn-blue btn-lg !w-full"
-                                disabled={isLoading3}
-                            >
-                                {isLoading3 ? <CircularProgress size={24} color="inherit" /> : "Save"}
-                            </Button>
-                        </div>
-                    </form>
+                <div className="flex items-center gap-3 p-3 rounded-md border border-gray-100">
+                  <FcGoogle />
+                  <div className="flex-1"><div className="text-[13px] font-[600] text-gray-900">Google</div><div className="text-[12px] text-gray-500">{google ? "Signed in with Google before — it stays connected." : "Sign in with Google on the login page to connect it."}</div></div>
+                  <span className={`pdBadge ${google ? "pdBadge--green" : ""}`}>{google ? "On" : "Off"}</span>
                 </div>
-            </Collapse>
-
-            <div className="card bg-white shadow-md rounded-md p-8">
-                <h2 className="text-[20px] font-[600] mb-4">Saved Addresses</h2>
-                <hr />
-                <br />
-
-                {addressList?.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        {addressList.map((addr, index) => (
-                            <div key={index} className="border border-gray-200 rounded-md p-5 shadow-sm bg-gray-50 flex flex-col justify-between">
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <h3 className="text-[16px] font-[600]">{addr.name}</h3>
-                                            {addr.isDefault && (
-                                                <span className="bg-blue-100 text-blue-800 text-[11px] font-[600] px-2 py-[2px] rounded uppercase tracking-wider">Default</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#2563eb', bgcolor: '#eff6ff' } }} onClick={() => handleViewBtnClick(addr)}><FiEye className="text-[18px]" /></IconButton>
-                                            <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#059669', bgcolor: '#ecfdf5' } }} onClick={() => handleEditBtnClick(addr)}><FiEdit className="text-[18px]" /></IconButton>
-                                            <IconButton size="small" sx={{ color: '#4b5563', '&:hover': { color: '#dc2626', bgcolor: '#fef2f2' } }} onClick={() => handleDeleteBtnClick(addr._id)}><FiTrash2 className="text-[18px]" /></IconButton>
-                                        </div>
-                                    </div>
-                                    <p className="text-[14px] text-gray-700 mb-1">
-                                        <span className="font-[500] text-gray-900">Mobile:</span> {addr.mobile}
-                                    </p>
-                                    <p className="text-[14px] text-gray-700 leading-relaxed max-w-[90%]">
-                                        {addr.flatHouse}, {addr.areaStreet}<br />
-                                        {addr.landmark ? `${addr.landmark}, ` : ""}
-                                        {addr.townCity}, {addr.state} - {addr.pincode}<br />
-                                        {addr.country}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-gray-500 text-center py-5">No addresses saved yet.</p>
+              </div>
+            ) : (
+              <form onSubmit={savePassword} className="flex flex-col gap-4 max-w-[420px]">
+                {hasPassword && (
+                  <div><label className="pdLabel">Current password</label><PwInput value={pw.oldPassword} onChange={(e) => setPw({ ...pw, oldPassword: e.target.value })} autoComplete="current-password" /></div>
                 )}
+                <div>
+                  <label className="pdLabel">New password</label>
+                  <PwInput value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} placeholder="At least 6 characters" autoComplete="new-password" />
+                  {pw.newPassword && (
+                    <div className="mt-2">
+                      <div className="flex gap-1">{[1, 2, 3, 4].map((i) => <span key={i} className="h-1 flex-1 rounded-full" style={{ background: i <= ["Too short", "Weak", "Okay", "Good", "Strong"].indexOf(st[0]) ? st[1] : "#e5e7eb" }} />)}</div>
+                      <div className="text-[11px] mt-1" style={{ color: st[1] }}>{st[0]}{st[0] !== "Strong" && pw.newPassword.length >= 6 ? " — mix upper & lower case, numbers and symbols" : ""}</div>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="pdLabel">Confirm new password</label>
+                  <PwInput value={pw.confirmPassword} onChange={(e) => setPw({ ...pw, confirmPassword: e.target.value })} autoComplete="new-password" />
+                  {pw.confirmPassword && pw.confirmPassword !== pw.newPassword && <div className="text-[11px] text-[#dc2626] mt-1">Passwords don't match</div>}
+                </div>
+                <div className="flex gap-2">
+                  <button className="pdBtn pdBtn--dark" disabled={pwSaving}>{pwSaving ? <CircularProgress size={16} color="inherit" /> : hasPassword ? "Update password" : "Set password"}</button>
+                  <button type="button" className="pdBtn pdBtn--light" onClick={() => { setPwOpen(false); setPw({ oldPassword: "", newPassword: "", confirmPassword: "" }); }}>Cancel</button>
+                </div>
+                {hasPassword && <div className="text-[12px] text-gray-500">Forgot it? Log out and use “Forgot password” on the login page.</div>}
+              </form>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <div className="pdCard !p-0">
+            <div className="px-[18px] pt-[18px] pb-2 flex items-center justify-between">
+              <div className="pdCard__title">Your recent activity</div>
+              <Link to={`/activity`} className="text-[12px] font-[600] text-gray-500 hover:text-gray-900">All activity</Link>
             </div>
+            {activity === null ? <div className="p-4"><div className="h-20 rounded bg-gray-100 animate-pulse" /></div>
+              : activity.length ? <div className="divide-y divide-gray-100 pb-2">{activity.map((a) => <ActivityRow key={a._id} a={a} showUser={false} />)}</div>
+                : <div className="px-[18px] pb-[18px] text-[12px] text-gray-400">Sign-ins and changes will show here.</div>}
+          </div>
 
-            {/* View Modal */}
-            <Dialog open={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} maxWidth="sm" fullWidth>
-                <DialogTitle className="flex items-center justify-between">
-                    <span className="font-[600]">View Address</span>
-                    <IconButton onClick={() => setIsViewModalOpen(false)}><IoCloseSharp /></IconButton>
-                </DialogTitle>
-                <DialogContent dividers>
-                    {viewData && (
-                        <div className="flex flex-col gap-3">
-                            {viewData.isDefault && (
-                                <div className="mb-1"><span className="bg-blue-100 text-blue-800 text-[12px] font-[600] px-2 py-1 rounded uppercase tracking-wider">Default Address</span></div>
-                            )}
-                            <p className="text-[15px]"><b className="font-[600]">Name:</b> {viewData.name}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Mobile:</b> {viewData.mobile}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Flat/House No:</b> {viewData.flatHouse}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Street/Area:</b> {viewData.areaStreet}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Landmark:</b> {viewData.landmark || "N/A"}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Town/City:</b> {viewData.townCity}</p>
-                            <p className="text-[15px]"><b className="font-[600]">State:</b> {viewData.state}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Pincode:</b> {viewData.pincode}</p>
-                            <p className="text-[15px]"><b className="font-[600]">Country:</b> {viewData.country}</p>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
-
-            {/* Delete Modal */}
-            <Dialog open={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)}>
-                <DialogTitle>Confirm Delete</DialogTitle>
-                <DialogContent>
-                    Are you sure you want to delete this address? This action cannot be undone.
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsDeleteModalOpen(false)} color="inherit">Cancel</Button>
-                    <Button onClick={confirmDeleteAddress} color="error" variant="contained" disabled={isLoading3}>
-                        {isLoading3 ? <CircularProgress size={20} color="inherit" /> : "Delete"}
-                    </Button>
-                </DialogActions>
-            </Dialog>
-
-        </section>
-    );
+          <div className="pdCard">
+            <div className="pdCard__title mb-3">Shortcuts</div>
+            <div className="flex flex-col gap-1">
+              {[["/settings", FiSettings, "Store settings"], ["/users", FiShield, "Admins & customers"], ["/activity", FiClock, "Live activity"]].map(([to, Icon, l]) => (
+                <Link key={to} to={to} className="flex items-center gap-3 h-9 px-2 rounded-md text-[13px] font-[500] text-gray-700 hover:bg-gray-50 hover:text-gray-900"><Icon className="text-gray-400" /> {l}</Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default MyAccount;

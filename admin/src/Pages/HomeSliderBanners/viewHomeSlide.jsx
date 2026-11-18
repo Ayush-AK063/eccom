@@ -1,79 +1,68 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
+import { FiEdit2, FiExternalLink } from "react-icons/fi";
 import { MyContext } from "../../App";
+import { typeInfo } from "./slideTypes";
+import { BannerPreview, PlacementMap } from "./SlideForm";
+import "./style.css";
+
+const Row = ({ label, children }) => (
+  <div className="flex items-start justify-between gap-4 py-2.5 border-t border-gray-100 first:border-0">
+    <span className="text-[12px] font-[600] text-gray-500 shrink-0">{label}</span>
+    <span className="text-[13px] text-gray-900 text-right break-all">{children || <span className="text-gray-400">—</span>}</span>
+  </div>
+);
 
 const ViewHomeSlide = ({ data }) => {
-    const context = useContext(MyContext);
+  const context = useContext(MyContext);
+  const [active, setActive] = useState(0);
+  if (!data) return null;
+  const info = typeInfo(data.type);
+  const imgs = data.images || [];
 
-    if (!data) return null;
-
-    return (
-        <div className="p-8">
-            <div className="card shadow-md sm:rounded-lg bg-white p-5">
-                <h2 className="text-[20px] font-[600] mb-5 border-b pb-3">Home Slide Details</h2>
-
-                <div className="flex flex-col md:flex-row gap-8">
-                    {/* Image Section */}
-                    <div className="w-full md:w-1/3 flex justify-center items-center bg-gray-50 rounded-md p-4 border border-gray-200">
-                        {data.images && data.images.length > 0 ? (
-                            <img
-                                src={data.images[0]}
-                                alt="Banner"
-                                className="max-w-full max-h-[300px] object-contain rounded-md"
-                            />
-                        ) : (
-                            <p className="text-gray-400">No Image Available</p>
-                        )}
-                    </div>
-
-                    {/* Details Section */}
-                    <div className="w-full md:w-2/3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
-
-                            <div className="detail-row">
-                                <span className="text-gray-500 text-[13px] uppercase font-[600]">Banner Type</span>
-                                <p className="text-[16px] font-[500] mt-1 bg-blue-100 text-blue-800 w-fit px-2.5 py-0.5 rounded">
-                                    {data.type || 'N/A'}
-                                </p>
-                            </div>
-
-                            {data.type === 'Left Big Banner' && (
-                                <div className="detail-row">
-                                    <span className="text-gray-500 text-[13px] uppercase font-[600]">Banner Heading</span>
-                                    <p className="text-[16px] font-[500] text-gray-800 mt-1">{data.bannerHeading || '-'}</p>
-                                </div>
-                            )}
-
-                            {['Left Big Banner', 'Right Top Banner', 'Right Down Banner'].includes(data.type) && (
-                                <>
-                                    <div className="detail-row">
-                                        <span className="text-gray-500 text-[13px] uppercase font-[600]">Product Title</span>
-                                        <p className="text-[16px] font-[500] text-gray-800 mt-1">{data.title || '-'}</p>
-                                    </div>
-
-                                    <div className="detail-row">
-                                        <span className="text-gray-500 text-[13px] uppercase font-[600]">Starting Price</span>
-                                        <p className="text-[16px] font-[500] text-gray-800 mt-1">{data.startAtOnlyPrice ? `₹${data.startAtOnlyPrice}` : '-'}</p>
-                                    </div>
-
-                                    <div className="detail-row sm:col-span-2">
-                                        <span className="text-gray-500 text-[13px] uppercase font-[600]">Redirect URL</span>
-                                        <p className="text-[16px] font-[500] text-blue-600 mt-1 break-all">
-                                            {data.redirectUrl ? (
-                                                <a href={data.redirectUrl} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                                    {data.redirectUrl}
-                                                </a>
-                                            ) : '-'}
-                                        </p>
-                                    </div>
-                                </>
-                            )}
-
-                        </div>
-                    </div>
-                </div>
-            </div>
+  return (
+    <div className="slideForm">
+      <div className="slideForm__grid">
+        <div className="flex flex-col gap-5">
+          <section className="sfCard">
+            <div className="sfCard__title">Preview</div>
+            <BannerPreview type={data.type} image={imgs[active]} {...data} />
+            {imgs.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto">
+                {imgs.map((src, i) => (
+                  <button key={src} onClick={() => setActive(i)} style={{ aspectRatio: info.ratio }}
+                    className={`h-14 shrink-0 rounded overflow-hidden border-2 ${i === active ? "border-[#111827]" : "border-transparent opacity-70 hover:opacity-100"}`}>
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
-    );
+        <aside className="slideForm__aside">
+          <section className="sfCard">
+            <div className="sfCard__title">Details</div>
+            <Row label="Type">{data.type}</Row>
+            <Row label="Status">{info.live ? <span className="text-[#059669] font-[600]">Live on home</span> : <span className="text-[#b45309] font-[600]">Not shown</span>}</Row>
+            {info.fields.includes("bannerHeading") && <Row label="Heading">{data.bannerHeading}</Row>}
+            {info.fields.includes("title") && <Row label="Title">{data.title}</Row>}
+            {info.fields.includes("startAtOnlyPrice") && <Row label="Starting price">{data.startAtOnlyPrice && `₹${data.startAtOnlyPrice}`}</Row>}
+            <Row label="Link">{data.redirectUrl}</Row>
+            <Row label="Images">{imgs.length}</Row>
+            {data.updatedAt && <Row label="Updated">{new Date(data.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</Row>}
+            <div className="mt-4"><span className="sfLabel">Placement</span><PlacementMap type={data.type} /></div>
+          </section>
+          <button className="sfSubmit gap-2" onClick={() => context.setIsOpenFullScreenPanel({ open: true, model: "Edit Home Slide", data })}>
+            <FiEdit2 /> Edit banner
+          </button>
+          {imgs[active] && (
+            <a href={imgs[active]} target="_blank" rel="noopener noreferrer" className="sfCancel flex items-center justify-center gap-2">
+              <FiExternalLink /> Open image
+            </a>
+          )}
+        </aside>
+      </div>
+    </div>
+  );
 };
 
 export default ViewHomeSlide;

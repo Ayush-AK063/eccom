@@ -1,3 +1,4 @@
+import { logActivity } from "../utils/activity.js";
 import MyList from "../models/MyList.js";
 import Product from "../models/Product.js";
 
@@ -39,6 +40,7 @@ export const addToMyListController = async (req, res) => {
     });
 
     const save = await myList.save();
+    logActivity(userId, "wishlist_add", { productId, name: product.name }, req);
 
     return res.status(201).json({
       message: "Product added to My List",

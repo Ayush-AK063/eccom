@@ -7,7 +7,7 @@ import ProductSlider from '../../components/ProductSlider';
 import ProductDetailsComponent from '../../components/ProductDetails';
 import Reviews from './reviews';
 import { getData, postData } from '../../utils/api';
-import { formatPrice } from '../../utils/formatPrice';
+import { optionFields } from '../../utils/formatPrice';
 import './style.css';
 
 const scrollToId = (id) => {
@@ -21,7 +21,13 @@ const ProductDetails = () => {
     const [relatedProducts, setRelatedProducts] = useState([])
     const [similarProducts, setSimilarProducts] = useState([])
     const [reviews, setReviews] = useState([])
+    const [variantImage, setVariantImage] = useState('')
     const { id } = useParams()
+
+    // Logged-in customer ne ye product dekha (admin → customer activity)
+    useEffect(() => {
+        if (id && localStorage.getItem('accesstoken')) postData('/api/activity/view', { productId: id })
+    }, [id])
 
     const fetchReviews = () => {
         getData(`/api/review/${id}`).then((res) => {
@@ -102,19 +108,54 @@ const ProductDetails = () => {
     const catId = product?.catId?._id || product?.catId
     const join = (v) => [].concat(v || []).filter((x) => x && x !== 'null').join(', ')
 
-    const details = [
+    const hasVariants = (product.variants || []).length > 0
+    const general = [
         ['Brand', product.brand],
+        ['Model number', product.modelNumber],
         ['Category', catName],
         ['Sub Category', product.subCat],
         ['Type', product.thirdSubCat],
-        ['RAM', join(product.productRam)],
-        ['Size', join(product.size)],
-        ['Weight', join(product.productWeight)],
-        ['Price', product.price ? formatPrice(product.price) : null],
-        ['MRP', product.oldprice > product.price ? formatPrice(product.oldprice) : null],
-        ['Availability', product.countInStock > 0 ? `In stock (${product.countInStock})` : 'Out of stock'],
-        ['Product Code', String(product._id).slice(-8).toUpperCase()],
+        ...optionFields(product).map((g) => [g.label, join(g.values.map((v) => (g.unit ? `${v} ${g.unit}` : v)))]),
+        ['Net quantity', product.compliance?.netQuantity],
+        ['In the box', product.policy?.inTheBox],
+        ['Availability', product.countInStock > 0 ? (hasVariants ? 'In stock' : `In stock (${product.countInStock})`) : 'Out of stock'],
+        ['SKU', product.sku || String(product._id).slice(-8).toUpperCase()],
     ].filter(([, value]) => value)
+
+    // Category template / custom specs → group wise
+    const specGroups = []
+    for (const sp of product.specifications || []) {
+        const g = sp.group || 'General'
+        let grp = specGroups.find((x) => x.name === g)
+        if (!grp) specGroups.push((grp = { name: g, rows: [] }))
+        grp.rows.push([sp.label, `${sp.value}${sp.unit ? ` ${sp.unit}` : ''}`])
+    }
+    const generalSpecs = specGroups.find((g) => g.name === 'General')
+    if (generalSpecs) { general.splice(1, 0, ...generalSpecs.rows); specGroups.splice(specGroups.indexOf(generalSpecs), 1) }
+
+    const pkg = product.shipping || {}
+    const policy = product.policy || {}
+    const shippingRows = [
+        ['Ships in', pkg.dispatchDays ? `${pkg.dispatchDays} ${pkg.dispatchDays === 1 ? 'day' : 'days'}` : null],
+        ['Cash on Delivery', pkg.codAvailable === false ? 'Not available' : 'Available'],
+        ['Returns', policy.returnable === false || policy.returnType === 'none' ? 'Not returnable' : `${policy.returnDays ?? 7} days ${policy.returnType === 'replace' ? 'replacement' : 'return / refund'}`],
+        ['Warranty', policy.warrantyMonths ? `${policy.warrantyMonths} months${policy.warrantyType ? ` · ${policy.warrantyType}` : ''}` : null],
+        ['Package weight', pkg.weight ? `${pkg.weight >= 1000 ? (pkg.weight / 1000).toFixed(2) + ' kg' : pkg.weight + ' g'}` : null],
+        ['Package size', pkg.length && pkg.width && pkg.height ? `${pkg.length} × ${pkg.width} × ${pkg.height} cm` : null],
+    ].filter(([, v]) => v)
+
+    const c = product.compliance || {}
+    const fmtMonth = (m) => (m && /^\d{4}-\d{2}$/.test(m) ? new Date(m + '-01').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : m)
+    const legalRows = [
+        ['Country of origin', c.countryOfOrigin],
+        ['Manufactured by', c.manufacturer],
+        ['Packed by', c.packer],
+        ['Imported by', c.importer],
+        ['Month of manufacture', fmtMonth(c.mfgDate)],
+        ['Best before', fmtMonth(c.expiryDate)],
+        ['Licence / certification', c.licenseNo],
+        ['Customer care', c.customerCare],
+    ].filter(([, v]) => v)
 
     const paragraphs = (product.description || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)
 
@@ -138,10 +179,10 @@ const ProductDetails = () => {
             {/* Top: gallery + info */}
             <section className='container pdTop'>
                 <div className='pdTop__gallery'>
-                    <ProductZoom item={product} />
+                    <ProductZoom item={product} activeSrc={variantImage} />
                 </div>
                 <div className='pdTop__info'>
-                    <ProductDetailsComponent item={product} reviewsCount={reviews.length} onReviewClick={() => scrollToId('reviews')} />
+                    <ProductDetailsComponent item={product} reviewsCount={reviews.length} onReviewClick={() => scrollToId('reviews')} onVariantChange={(v) => setVariantImage(v.image || '')} />
                 </div>
             </section>
 
@@ -158,19 +199,55 @@ const ProductDetails = () => {
                     ) : (
                         <div className='text-[14px] text-gray-500'>No description available.</div>
                     )}
+                    {product.videoUrl && /^https?:\/\//.test(product.videoUrl) && (
+                        <a href={product.videoUrl} target='_blank' rel='noopener noreferrer' className='mt-4 inline-flex items-center gap-2 text-[13px] font-[600] text-primary hover:underline'>
+                            ▶ Watch product video
+                        </a>
+                    )}
                 </section>
 
                 <section id='details' className='pdBlock'>
-                    <h2 className='pdBlock__title'>Product Details</h2>
-                    <dl className='pdSpecs'>
-                        {details.map(([label, value]) => (
-                            <div key={label} className='pdSpecs__row'>
-                                <dt>{label}</dt>
-                                <dd>{value}</dd>
-                            </div>
-                        ))}
-                    </dl>
+                    <h2 className='pdBlock__title'>Specifications</h2>
+                    <div className='pdSpecGroup'>
+                        <h3>General</h3>
+                        <dl className='pdSpecs'>
+                            {general.map(([label, value]) => (
+                                <div key={label} className='pdSpecs__row'><dt>{label}</dt><dd>{value}</dd></div>
+                            ))}
+                        </dl>
+                    </div>
+                    {specGroups.map((g) => (
+                        <div key={g.name} className='pdSpecGroup'>
+                            <h3>{g.name}</h3>
+                            <dl className='pdSpecs'>
+                                {g.rows.map(([label, value]) => (
+                                    <div key={label} className='pdSpecs__row'><dt>{label}</dt><dd className='whitespace-pre-line'>{value}</dd></div>
+                                ))}
+                            </dl>
+                        </div>
+                    ))}
+                    {shippingRows.length > 0 && (
+                        <div className='pdSpecGroup'>
+                            <h3>Shipping, returns & warranty</h3>
+                            <dl className='pdSpecs'>
+                                {shippingRows.map(([label, value]) => (
+                                    <div key={label} className='pdSpecs__row'><dt>{label}</dt><dd>{value}</dd></div>
+                                ))}
+                            </dl>
+                        </div>
+                    )}
                 </section>
+
+                {legalRows.length > 0 && (
+                    <section id='legal' className='pdBlock'>
+                        <h2 className='pdBlock__title'>Manufacturer & legal info</h2>
+                        <dl className='pdSpecs pdSpecs--single'>
+                            {legalRows.map(([label, value]) => (
+                                <div key={label} className='pdSpecs__row'><dt>{label}</dt><dd className='whitespace-pre-line'>{value}</dd></div>
+                            ))}
+                        </dl>
+                    </section>
+                )}
 
                 <section id='reviews' className='pdBlock'>
                     <h2 className='pdBlock__title'>Ratings & Reviews</h2>

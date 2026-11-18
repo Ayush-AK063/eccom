@@ -2,6 +2,11 @@ import { HomeSlide } from "../models/HomeSlide.js";
 import { v2 as cloudinary } from "cloudinary";
 import pLimit from "p-limit";
 
+const scheduleFields = (b = {}) => {
+    const d = (v) => (v && !isNaN(new Date(v)) ? new Date(v) : null);
+    return { isActive: b.isActive !== false, startAt: d(b.startAt), endAt: d(b.endAt), sortOrder: Math.round(Number(b.sortOrder) || 0) };
+};
+
 export const uploadImages = async (req, res) => {
     try {
         const images = req.files;
@@ -30,6 +35,7 @@ export const uploadImages = async (req, res) => {
 export const addHomeSlide = async (req, res) => {
     try {
         const { images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl } = req.body;
+        const schedule = scheduleFields(req.body);
 
         if (!images || images.length === 0) {
             return res.status(400).json({ success: false, message: "At least one image is required" });
@@ -39,7 +45,7 @@ export const addHomeSlide = async (req, res) => {
             return res.status(400).json({ success: false, message: "Banner type is required" });
         }
 
-        const newSlide = new HomeSlide({ images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl });
+        const newSlide = new HomeSlide({ images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl, ...schedule });
         await newSlide.save();
 
         return res.status(201).json({ success: true, message: "Home Slide added successfully", data: newSlide });
@@ -50,7 +56,16 @@ export const addHomeSlide = async (req, res) => {
 
 export const getHomeSlides = async (req, res) => {
     try {
-        const slides = await HomeSlide.find().sort({ createdAt: -1 });
+        // Store ko sirf live banners; admin (?admin=1) ko sab
+        const now = new Date();
+        const filter = req.query.admin === "1" ? {} : {
+            isActive: { $ne: false },
+            $and: [
+                { $or: [{ startAt: null }, { startAt: { $exists: false } }, { startAt: { $lte: now } }] },
+                { $or: [{ endAt: null }, { endAt: { $exists: false } }, { endAt: { $gt: now } }] },
+            ],
+        };
+        const slides = await HomeSlide.find(filter).sort({ sortOrder: 1, createdAt: -1 });
         return res.status(200).json({ success: true, data: slides });
     } catch (error) {
         return res.status(500).json({ success: false, message: "Server Error", error: error.message });
@@ -113,6 +128,7 @@ export const updateHomeSlide = async (req, res) => {
     try {
         const { id } = req.params;
         const { images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl } = req.body;
+        const schedule = scheduleFields(req.body);
 
         if (!type) {
             return res.status(400).json({ success: false, message: "Banner type is required" });
@@ -120,7 +136,7 @@ export const updateHomeSlide = async (req, res) => {
 
         const updatedSlide = await HomeSlide.findByIdAndUpdate(
             id,
-            { images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl },
+            { images, type, bannerHeading, title, startAtOnlyPrice, redirectUrl, ...schedule },
             { new: true }
         );
 

@@ -1,233 +1,189 @@
-import Button from "@mui/material/Button";
-import Checkbox from "@mui/material/Checkbox";
-import React, { useContext, useEffect, useState } from "react";
-import { AiOutlineCloudDownload } from "react-icons/ai";
-import { HiOutlinePlusSm } from "react-icons/hi";
-import { Link } from "react-router-dom";
-import TooltipMUI from "@mui/material/Tooltip";
-import { RiDeleteBin6Line } from "react-icons/ri";
-import { BiEditAlt } from "react-icons/bi";
-import { CgEye } from "react-icons/cg";
-import Pagination from "@mui/material/Pagination";
+import React, { useContext, useEffect, useMemo, useState } from "react";
+import { FiPlus, FiEdit2, FiEye, FiTrash2, FiCheck, FiImage, FiLink, FiX } from "react-icons/fi";
 import { MyContext } from "../../App";
 import { getData, deleteData, postData } from "../../utils/api";
+import { SLIDE_TYPES, typeInfo } from "./slideTypes";
+import { PlacementMap } from "./SlideForm";
+import "./style.css";
 
-const label = { inputProps: { "aria-label": "Checkbox demo" } };
+const GRID = { "4 / 1": "grid-cols-1 lg:grid-cols-2", "16 / 9": "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3" };
 
 const HomeSliderBanner = () => {
-  const [slideList, setSlideList] = useState([]);
-  const [selectedSlides, setSelectedSlides] = useState([]);
   const Context = useContext(MyContext);
+  const [slides, setSlides] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("all");
+  const [selected, setSelected] = useState([]);
+
+  const fetchSlides = async () => {
+    const res = await getData("/api/homeSlide?admin=1");
+    if (res?.success) setSlides(res?.data || []);
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchSlides();
   }, [Context.refetchHomeSlides]);
 
-  const fetchSlides = async () => {
-    try {
-      const res = await getData("/api/homeSlide");
-      if (res?.success) {
-        setSlideList(res?.data || []);
-      }
-    } catch (error) {
-      console.log("Error fetching slides", error);
-    }
+  const counts = useMemo(() => Object.fromEntries(SLIDE_TYPES.map((t) => [t.value, slides.filter((s) => s.type === t.value).length])), [slides]);
+  const groups = SLIDE_TYPES.filter((t) => tab === "all" || t.value === tab);
+  const open = (model, data) => Context.setIsOpenFullScreenPanel({ open: true, model, data });
+  const toggle = (id) => setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  const deleteOne = async (id) => {
+    if (!window.confirm("Delete this banner? This cannot be undone.")) return;
+    const res = await deleteData(`/api/homeSlide/${id}`);
+    if (res?.success) {
+      Context.openAlertBox("success", "Banner deleted");
+      setSelected((p) => p.filter((x) => x !== id));
+      fetchSlides();
+    } else Context.openAlertBox("error", res?.message || "Failed to delete banner");
   };
 
-  const deleteSlide = async (id) => {
-    try {
-      if (!window.confirm("Are you sure you want to delete this slide?")) return;
-      const res = await deleteData(`/api/homeSlide/${id}`);
-      if (res?.success) {
-        Context.openAlertBox("success", "Slide deleted successfully");
-        fetchSlides();
-        setSelectedSlides(selectedSlides.filter((sid) => sid !== id));
-      } else {
-        Context.openAlertBox("error", res?.message || "Failed to delete slide");
-      }
-    } catch (error) {
-      console.log("Error deleting slide", error);
-      Context.openAlertBox("error", "Server Error");
-    }
-  };
-
-  const deleteMultipleSlides = async () => {
-    if (selectedSlides.length === 0) return;
-    if (window.confirm(`Are you sure you want to delete ${selectedSlides.length} selected slides?`)) {
-      try {
-        const res = await postData(`/api/homeSlide/delete-multiple`, { ids: selectedSlides });
-        if (res?.success) {
-          Context.openAlertBox("success", "Selected slides deleted successfully");
-          setSelectedSlides([]);
-          fetchSlides();
-        } else {
-          Context.openAlertBox("error", res?.message || "Failed to delete selected slides");
-        }
-      } catch (error) {
-        console.log("Error deleting multiple slides", error);
-        Context.openAlertBox("error", "Server Error");
-      }
-    }
-  };
-
-  const selectAllSlides = (event) => {
-    if (event.target.checked) {
-      setSelectedSlides(slideList.map((s) => s._id));
-    } else {
-      setSelectedSlides([]);
-    }
-  };
-
-  const selectSingleSlide = (event, id) => {
-    if (event.target.checked) {
-      setSelectedSlides([...selectedSlides, id]);
-    } else {
-      setSelectedSlides(selectedSlides.filter((sid) => sid !== id));
-    }
+  const deleteSelected = async () => {
+    if (!window.confirm(`Delete ${selected.length} banner(s)? This cannot be undone.`)) return;
+    const res = await postData("/api/homeSlide/delete-multiple", { ids: selected });
+    if (res?.success) {
+      Context.openAlertBox("success", `${selected.length} banner(s) deleted`);
+      setSelected([]);
+      fetchSlides();
+    } else Context.openAlertBox("error", res?.message || "Failed to delete banners");
   };
 
   return (
-    <>
-      <div className="card my-4 shadow-md sm:rounded-lg bg-white">
-        <div className="flex items-center justify-between px-5 py-5">
-          <h2 className="text-[18px] font-[600]">Home Slider Banners</h2>
-          <div className="col w-auto ml-auto flex items-center justify-end gap-3 flex-wrap">
-            {selectedSlides.length > 0 && (
-              <Button className="btn-blue !bg-red-600 btn-sm whitespace-nowrap" onClick={deleteMultipleSlides}>
-                <RiDeleteBin6Line className="text-[#fff] font-bold text-[20px] mr-1" />
-                Delete Selected ({selectedSlides.length})
-              </Button>
-            )}
-            <Button className="btn-blue !bg-green-600 btn-sm whitespace-nowrap">
-              <AiOutlineCloudDownload className="text-[#fff] font-bold text-[24px] mr-1" />
-              Export
-            </Button>
-            <Button
-              className="btn-blue btn-sm whitespace-nowrap"
-              onClick={() =>
-                Context.setIsOpenFullScreenPanel({
-                  open: true,
-                  model: "Add Home Slide",
-                })
-              }
-            >
-              <HiOutlinePlusSm className="text-[#fff] font-bold text-[24px] mr-1" />
-              Add Home Slide
-            </Button>
+    <div className="flex flex-col gap-5 pb-8">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[22px] font-[700] text-gray-900 tracking-tight">Home banners</h1>
+          <div className="text-[14px] text-gray-500">Images shown on the storefront home page · {slides.length} total</div>
+        </div>
+        <button onClick={() => open("Add Home Slide")}
+          className="h-10 px-4 rounded-md bg-[#111827] text-white text-[13px] font-[600] flex items-center gap-2 hover:bg-[#ff5252] transition">
+          <FiPlus /> Add banner
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto bg-white border border-gray-200 rounded-md p-1.5">
+        <button className={`hsTab ${tab === "all" ? "is-active" : ""}`} onClick={() => setTab("all")}>All <b>{slides.length}</b></button>
+        {SLIDE_TYPES.map((t) => (
+          <button key={t.value} className={`hsTab ${tab === t.value ? "is-active" : ""}`} onClick={() => setTab(t.value)}>
+            {t.value} <b>{counts[t.value]}</b>
+          </button>
+        ))}
+      </div>
+
+      {/* Bulk bar */}
+      {selected.length > 0 && (
+        <div className="sticky top-2 z-20 flex items-center gap-3 bg-[#111827] text-white rounded-md px-4 py-2.5 shadow-lg">
+          <span className="text-[13px] font-[600]">{selected.length} selected</span>
+          <button onClick={() => setSelected([])} className="text-[12px] text-gray-300 hover:text-white flex items-center gap-1"><FiX /> Clear</button>
+          <button onClick={deleteSelected} className="ml-auto h-8 px-3 rounded-md bg-[#ef4444] hover:bg-[#dc2626] text-[12px] font-[600] flex items-center gap-1.5">
+            <FiTrash2 /> Delete selected
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[0, 1, 2].map((i) => <div key={i} className="aspect-video rounded-md bg-gray-100 animate-pulse" />)}
+        </div>
+      ) : (
+        groups.map((t) => {
+          const list = slides.filter((s) => s.type === t.value);
+          if (tab === "all" && !list.length) return null;
+          return (
+            <section key={t.value} className={`bg-white border border-gray-200 rounded-md ${selected.length ? "hsSelecting" : ""}`}>
+              <div className="flex flex-wrap items-start gap-4 px-5 py-4 border-b border-gray-100">
+                <div className="w-[120px] shrink-0 hidden sm:block"><PlacementMap type={t.value} /></div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-[15px] font-[700] text-gray-900">{t.value}</h2>
+                    <span className="text-[11px] font-[600] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{list.length}</span>
+                    {t.live
+                      ? <span className="text-[11px] font-[600] text-[#059669] bg-[#ecfdf5] px-1.5 py-0.5 rounded">Live on home</span>
+                      : <span className="text-[11px] font-[600] text-[#b45309] bg-[#fffbeb] px-1.5 py-0.5 rounded">Not shown</span>}
+                  </div>
+                  <div className="mt-1 text-[12px] text-gray-500">{t.where} · {t.size}</div>
+                  {t.single && list.length > 1 && <div className="mt-1 text-[12px] text-[#b45309]">Only the first banner is shown — {list.length - 1} extra.</div>}
+                </div>
+                <button onClick={() => open("Add Home Slide")} className="h-8 px-3 rounded-md border border-gray-200 text-[12px] font-[600] text-gray-700 flex items-center gap-1.5 hover:border-gray-900">
+                  <FiPlus /> Add
+                </button>
+              </div>
+
+              <div className="p-5">
+                {list.length ? (
+                  <div className={`grid gap-4 ${GRID[t.ratio]}`}>
+                    {list.map((s, i) => (
+                      <SlideCard key={s._id} s={s} index={i} selected={selected.includes(s._id)} hidden={t.single && i > 0}
+                        onToggle={() => toggle(s._id)} onEdit={() => open("Edit Home Slide", s)} onView={() => open("View Home Slide", s)} onDelete={() => deleteOne(s._id)} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2 py-10 text-center">
+                    <FiImage className="text-[26px] text-gray-300" />
+                    <div className="text-[13px] text-gray-500">No {t.value.toLowerCase()} yet</div>
+                    <button onClick={() => open("Add Home Slide")} className="text-[13px] font-[600] text-[#ff5252] hover:underline">Add one</button>
+                  </div>
+                )}
+              </div>
+            </section>
+          );
+        })
+      )}
+
+      {!loading && !slides.length && tab === "all" && (
+        <div className="bg-white border border-gray-200 rounded-md flex flex-col items-center gap-2 py-16 text-center">
+          <FiImage className="text-[30px] text-gray-300" />
+          <div className="text-[15px] font-[600] text-gray-800">No banners yet</div>
+          <div className="text-[13px] text-gray-500">Add a hero banner to start decorating your home page.</div>
+          <button onClick={() => open("Add Home Slide")} className="mt-2 h-9 px-4 rounded-md bg-[#111827] text-white text-[13px] font-[600] flex items-center gap-2"><FiPlus /> Add banner</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Schedule ke hisaab se abhi live hai ya nahi
+const liveState = (s) => {
+  const now = Date.now();
+  if (s.isActive === false) return "Paused";
+  if (s.startAt && new Date(s.startAt) > now) return `Starts ${new Date(s.startAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}`;
+  if (s.endAt && new Date(s.endAt) <= now) return "Ended";
+  return null;
+};
+
+const SlideCard = ({ s, index, selected, hidden: notFirst, onToggle, onEdit, onView, onDelete }) => {
+  const off = liveState(s);
+  const hidden = notFirst || !!off;
+  const info = typeInfo(s.type);
+  const text = s.title || s.bannerHeading;
+  return (
+    <div className={`hsCard ${selected ? "is-selected" : ""}`}>
+      <div className="hsCard__media" style={{ aspectRatio: info.ratio }} onClick={onView}>
+        <img src={s.images?.[0]} alt="" className={`absolute inset-0 w-full h-full object-cover ${hidden ? "opacity-50" : ""}`} />
+        <button type="button" aria-label="Select banner" className="hsCard__check" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+          {selected && <FiCheck />}
+        </button>
+        {s.images?.length > 1 && <span className="hsCard__count"><FiImage /> {s.images.length}</span>}
+        {hidden && <span className="absolute left-2 bottom-2 px-1.5 py-0.5 rounded bg-[#fffbeb] text-[#b45309] text-[11px] font-[600]">{off || "Not shown"}</span>}
+        {!off && s.endAt && <span className="absolute right-2 bottom-2 px-1.5 py-0.5 rounded bg-white/90 text-gray-700 text-[11px] font-[600]">Until {new Date(s.endAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>}
+      </div>
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <div className="text-[13px] font-[600] text-gray-900 truncate">{text || <span className="text-gray-400 font-[500]">Banner {index + 1} · image only</span>}</div>
+          <div className="flex items-center gap-1 text-[11px] text-gray-400 truncate">
+            {s.startAtOnlyPrice && <span className="text-gray-600 font-[600] mr-1">From ₹{s.startAtOnlyPrice}</span>}
+            <FiLink className="shrink-0" /> <span className="truncate">{s.redirectUrl || "/"}</span>
           </div>
         </div>
-
-        <div className="relative mt-5 pb-5 overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-100 ">
-              <tr>
-                <th scope="col" className="px-6 pr-0 py-3" width="10%">
-                  <div className="w-[60px]">
-                    <Checkbox {...label} size="small"
-                      checked={slideList?.length > 0 && selectedSlides.length === slideList.length}
-                      onChange={selectAllSlides} />
-                  </div>
-                </th>
-                <th scope="col" className="px-0 py-3 whitespace-nowrap">
-                  Image
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Type
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {slideList?.length !== 0 && slideList?.map((item, index) => {
-                return (
-                  <tr key={index} className="odd:bg-white odd:dark:bg-gray-900 even:bg-gray-50 even:dark:bg-gray-800 border-b dark:border-gray-700 border-gray-200">
-                    <td className="px-6 pr-0 py-2">
-                      <div className="w-[80px]">
-                        <Checkbox {...label} size="small"
-                          checked={selectedSlides.includes(item?._id)}
-                          onChange={(e) => selectSingleSlide(e, item?._id)} />
-                      </div>
-                    </td>
-
-                    <td className="px-0 py-2">
-                      <div className="flex justify-center items-center w-[300px] group">
-                        <div className="w-full h-full overflow-hidden rounded-md flex justify-center items-center">
-                          <img
-                            src={item?.images[0]}
-                            alt="slide"
-                            className="max-w-full max-h-[100px] object-contain transition-all group-hover:scale-105"
-                          />
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-2">
-                      <span className="bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-800">
-                        {item?.type}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-2">
-                      <div className="flex items-center gap-2">
-                        <TooltipMUI title="Edit Slide" placement="bottom-start">
-                          <Button
-                            className="!w-[35px] !h-[35px] !min-w-[35px] !border !border-[rgb(0,0,0,0.2)] hover:!bg-[#ccc] !rounded-md bg-[#f1f1f1]"
-                            onClick={() =>
-                              Context.setIsOpenFullScreenPanel({
-                                open: true,
-                                model: "Edit Home Slide",
-                                data: item,
-                              })
-                            }
-                          >
-                            <BiEditAlt className="text-[rgb(0,0,0,0.7)] text-[24px]" />
-                          </Button>
-                        </TooltipMUI>
-
-                        <TooltipMUI title="View Slide Details" placement="bottom-start">
-                          <Button
-                            className="!w-[35px] !h-[35px] !min-w-[35px] !border !border-[rgb(0,0,0,0.2)] hover:!bg-[#ccc] !rounded-md bg-[#f1f1f1]"
-                            onClick={() =>
-                              Context.setIsOpenFullScreenPanel({
-                                open: true,
-                                model: "View Home Slide",
-                                data: item,
-                              })
-                            }
-                          >
-                            <CgEye className="text-[rgb(0,0,0,0.7)] text-[24px]" />
-                          </Button>
-                        </TooltipMUI>
-
-                        <TooltipMUI title="Remove Slide" placement="bottom-start">
-                          <Button
-                            className="!w-[35px] !h-[35px] !min-w-[35px] !border !border-[rgb(0,0,0,0.2)] hover:!bg-[#ccc] !rounded-md bg-[#f1f1f1]"
-                            onClick={() => deleteSlide(item?._id)}
-                          >
-                            <RiDeleteBin6Line className="text-[rgb(0,0,0,0.7)] text-[24px]" />
-                          </Button>
-                        </TooltipMUI>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {slideList?.length === 0 && (
-            <div className="p-4 text-center text-gray-500">
-              No Home Slides Found
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-end pt-4 px-4 pb-4">
-          <Pagination count={10} color="primary" />
-        </div>
+        <button className="hsIconBtn" title="Edit" onClick={onEdit}><FiEdit2 /></button>
+        <button className="hsIconBtn" title="View" onClick={onView}><FiEye /></button>
+        <button className="hsIconBtn hsIconBtn--danger" title="Delete" onClick={onDelete}><FiTrash2 /></button>
       </div>
-    </>
+    </div>
   );
 };
 

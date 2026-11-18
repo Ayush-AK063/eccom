@@ -8,7 +8,7 @@ const BlogItem = ({ item }) => {
     ? new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
   // description mein HTML ho sakta hai (editor se) -> plain text
-  const text = (item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = (item?.excerpt || item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
   return (
     <article className='blogItem group h-full flex flex-col bg-white border border-gray-100 rounded-md overflow-hidden transition-all duration-300 hover:shadow-[0_14px_30px_-12px_rgba(17,24,39,0.18)] hover:border-gray-200'>

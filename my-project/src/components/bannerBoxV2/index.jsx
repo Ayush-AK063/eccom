@@ -2,7 +2,7 @@ import React from 'react'
 import './style.css'
 import { Link } from 'react-router-dom'
 
-const BannerBoxV2 = ({ banner, info }) => {
+const BannerBoxV2 = ({ banner, info, buttonText = "SHOP NOW" }) => {
   if (!banner) return null
 
   return (
@@ -33,7 +33,7 @@ const BannerBoxV2 = ({ banner, info }) => {
             to={banner.redirectUrl || '/'}
             className='text-[13px] font-[600] tracking-wide text-white underline underline-offset-4 hover:text-primary transition-colors'
           >
-            SHOP NOW
+            {buttonText}
           </Link>
         </div>
       </div>

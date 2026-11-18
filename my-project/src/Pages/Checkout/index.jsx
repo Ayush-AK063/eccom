@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
 import { FiCheck, FiEdit2, FiLock, FiMapPin, FiPlus, FiShoppingBag, FiTruck } from 'react-icons/fi';
 import { LiaMoneyBillWaveSolid } from 'react-icons/lia';
+import { computeCharges, checkoutBlockers } from '../../utils/storeSettings';
+import CouponBox from '../../components/CouponBox';
 import { MyContext } from '../../App';
-import { VARIANT_FIELDS, formatPrice } from '../../utils/formatPrice';
+import { formatPrice, optionEntries } from '../../utils/formatPrice';
 import { postData } from '../../utils/api';
 import './style.css';
 
@@ -30,6 +32,9 @@ const Checkout = () => {
   const subTotal = cartData.reduce((t, i) => t + (i.productId.price || 0) * (i.quantity || 1), 0)
   const mrpTotal = cartData.reduce((t, i) => t + Math.max(i.productId.oldprice || 0, i.productId.price || 0) * (i.quantity || 1), 0)
   const discount = mrpTotal - subTotal
+  const couponOff = Math.min(context?.coupon?.discount || 0, subTotal)
+  const charges = computeCharges(context?.settings, subTotal - couponOff)
+  const blockers = checkoutBlockers(context?.settings, subTotal, cartData)
   const selected = addressList.find((a) => a._id === selectedAddressId)
 
   // Page upar se khule, cart panel band
@@ -60,12 +65,14 @@ const Checkout = () => {
       document.getElementById('co-address')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
+    if (blockers.length) return context.openAlertBox('error', blockers[0])
     if (isPlacing) return
     setIsPlacing(true)
     try {
-      const res = await postData('/api/order/cod', { addressId: selectedAddressId })
+      const res = await postData('/api/order/cod', { addressId: selectedAddressId, couponCode: context?.coupon?.code || '' })
       if (res?.error === false) {
         context.openAlertBox('success', res?.message || 'Order placed successfully')
+        context.setCoupon(null)
         await context.getCartItems()
         history('/order/success', { state: { order: res?.data } })
       } else if (res?.message && res?.success === false) {
@@ -98,8 +105,8 @@ const Checkout = () => {
   }
 
   const placeBtn = (
-    <button type='button' onClick={handlePlaceOrder} disabled={isPlacing} className='coPlace'>
-      {isPlacing ? <CircularProgress size={20} color='inherit' /> : <><FiLock className='text-[15px]' /> Place Order · {formatPrice(subTotal)}</>}
+    <button type='button' onClick={handlePlaceOrder} disabled={isPlacing || blockers.length > 0} className='coPlace'>
+      {isPlacing ? <CircularProgress size={20} color='inherit' /> : <><FiLock className='text-[15px]' /> Place Order · {formatPrice(charges.total)}</>}
     </button>
   )
 
@@ -179,7 +186,7 @@ const Checkout = () => {
                 <LiaMoneyBillWaveSolid className='text-[26px] text-gray-700 shrink-0' />
                 <div className='min-w-0 flex-1'>
                   <div className='text-[14px] font-[700] text-gray-900'>Cash on Delivery</div>
-                  <div className='text-[12px] text-gray-500 mt-0.5'>Pay in cash when your order is delivered.</div>
+                  <div className='text-[12px] text-gray-500 mt-0.5'>Pay in cash when your order is delivered.{charges.codCharge > 0 ? ` A ${formatPrice(charges.codCharge)} COD fee applies.` : ''}</div>
                 </div>
               </label>
             </section>
@@ -200,8 +207,8 @@ const Checkout = () => {
                       <div className='min-w-0 flex-1'>
                         <div className='text-[14px] font-[600] text-gray-900 leading-[20px] line-clamp-1'>{p.name}</div>
                         <div className='flex flex-wrap items-center gap-1.5 mt-1 text-[12px] text-gray-500'>
-                          {VARIANT_FIELDS.filter(({ key }) => item[key]).map(({ key, label }) => (
-                            <span key={key} className='coTag'>{label}: {item[key]}</span>
+                          {optionEntries(item).map(([label, value]) => (
+                            <span key={label} className='coTag'>{label}: {value}</span>
                           ))}
                           <span>Qty {qty} × {formatPrice(p.price)}</span>
                         </div>
@@ -220,17 +227,20 @@ const Checkout = () => {
           {/* Summary */}
           <aside className='coSummary'>
             <h2 className='text-[17px] font-[700] text-gray-900'>Order Summary</h2>
+            <CouponBox subTotal={subTotal} />
 
             <div className='mt-4 flex flex-col gap-2.5 text-[14px]'>
               <div className='flex justify-between text-gray-600'><span>Price ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span><span className='text-gray-900'>{formatPrice(mrpTotal)}</span></div>
               {discount > 0 && <div className='flex justify-between text-gray-600'><span>Discount</span><span className='text-[#15803d] font-[600]'>− {formatPrice(discount)}</span></div>}
-              <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='text-[#15803d] font-[600]'>Free</span></div>
+              {couponOff > 0 && <div className='flex justify-between text-gray-600'><span>Coupon ({context.coupon.code})</span><span className='text-[#15803d] font-[600]'>− {formatPrice(couponOff)}</span></div>}
+              <div className='flex justify-between text-gray-600'><span>Shipping</span>{charges.shipping > 0 ? <span className='text-gray-900'>{formatPrice(charges.shipping)}</span> : <span className='text-[#15803d] font-[600]'>Free</span>}</div>
+              {charges.codCharge > 0 && <div className='flex justify-between text-gray-600'><span>COD fee</span><span className='text-gray-900'>{formatPrice(charges.codCharge)}</span></div>}
               <div className='flex justify-between text-gray-600'><span>Payment</span><span className='text-gray-900'>Cash on Delivery</span></div>
             </div>
 
             <div className='flex justify-between items-baseline mt-4 pt-4 border-t border-dashed border-gray-200'>
               <span className='text-[16px] font-[700] text-gray-900'>Total</span>
-              <span className='text-[22px] font-[800] text-gray-900'>{formatPrice(subTotal)}</span>
+              <span className='text-[22px] font-[800] text-gray-900'>{formatPrice(charges.total)}</span>
             </div>
             {discount > 0 && (
               <div className='mt-3 px-3 py-2 rounded-md bg-[#f0fdf4] text-[13px] font-[600] text-[#15803d]'>You save {formatPrice(discount)} on this order</div>
@@ -247,6 +257,12 @@ const Checkout = () => {
               )}
             </div>
 
+            {blockers.length > 0 && (
+              <ul className='mt-3 px-3 py-2 rounded-md bg-[#fff7ed] text-[13px] text-[#c2410c] flex flex-col gap-1'>
+                {blockers.map((b) => <li key={b}>{b}</li>)}
+              </ul>
+            )}
+            {context?.settings?.checkout?.taxInclusiveNote !== false && <div className='mt-2 text-[11px] text-gray-400 text-right'>Inclusive of all taxes</div>}
             <div className='hidden lg:block'>{placeBtn}</div>
             <div className='mt-3 flex items-center justify-center gap-1.5 text-[11px] text-gray-400'>
               <FiLock /> Your order details are sent securely
@@ -259,7 +275,7 @@ const Checkout = () => {
       <div className='coMobileBar lg:hidden'>
         <div>
           <div className='text-[11px] text-gray-500'>Total</div>
-          <div className='text-[17px] font-[800] text-gray-900 leading-tight'>{formatPrice(subTotal)}</div>
+          <div className='text-[17px] font-[800] text-gray-900 leading-tight'>{formatPrice(charges.total)}</div>
         </div>
         <div className='flex-1 max-w-[260px]'>{placeBtn}</div>
       </div>

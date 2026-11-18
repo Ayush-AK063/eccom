@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react'
+import React, { useContext, useEffect, useState } from 'react'
+import { MyContext } from '../../App'
 import { Link, useLocation } from 'react-router-dom'
 import { FiCheck, FiCopy, FiMapPin, FiPackage, FiTruck } from 'react-icons/fi'
 import { LiaMoneyBillWaveSolid } from 'react-icons/lia'
-import { VARIANT_FIELDS, formatPrice } from '../../utils/formatPrice'
+import { formatPrice, optionEntries } from '../../utils/formatPrice'
 import './style.css'
 
 const fmtDay = (d) => d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
 
 const OrderSuccess = () => {
   // Checkout se order aata hai (refresh par nahi — tab sirf message)
+  const context = useContext(MyContext)
   const order = useLocation()?.state?.order
   const [copied, setCopied] = useState(false)
 
@@ -16,8 +18,8 @@ const OrderSuccess = () => {
 
   const orderNo = order ? String(order._id).slice(-8).toUpperCase() : ''
   const placed = order?.createdAt ? new Date(order.createdAt) : new Date()
-  const etaFrom = new Date(placed); etaFrom.setDate(etaFrom.getDate() + 2)
-  const etaTo = new Date(placed); etaTo.setDate(etaTo.getDate() + 3)
+  const etaFrom = new Date(placed); etaFrom.setDate(etaFrom.getDate() + (context?.settings?.shipping?.etaMinDays ?? 2))
+  const etaTo = new Date(placed); etaTo.setDate(etaTo.getDate() + (context?.settings?.shipping?.etaMaxDays ?? 5))
   const addr = order?.deliveryAddress
   const items = order?.products || []
   const itemCount = items.reduce((t, p) => t + (p.quantity || 1), 0)
@@ -79,7 +81,7 @@ const OrderSuccess = () => {
                     <div className='min-w-0 flex-1'>
                       <div className='text-[14px] font-[600] text-gray-900 line-clamp-1'>{p.productTitle}</div>
                       <div className='mt-0.5 text-[12px] text-gray-500'>
-                        {VARIANT_FIELDS.filter(({ key }) => p[key]).map(({ key, label }) => `${label}: ${p[key]}`).concat(`Qty ${p.quantity}`).join(' · ')}
+                        {optionEntries(p).map(([label, value]) => `${label}: ${value}`).concat(`Qty ${p.quantity}`).join(' · ')}
                       </div>
                     </div>
                     <div className='text-[14px] font-[700] text-gray-900 whitespace-nowrap'>{formatPrice(p.subTotal)}</div>
@@ -87,7 +89,9 @@ const OrderSuccess = () => {
                 ))}
               </ul>
               <div className='mt-3 pt-3 border-t border-dashed border-gray-200 flex flex-col gap-1.5 text-[13px]'>
-                <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='font-[600] text-[#15803d]'>Free</span></div>
+                {order.couponDiscount > 0 && <div className='flex justify-between text-gray-600'><span>Coupon ({order.couponCode})</span><span className='text-[#15803d] font-[600]'>− {formatPrice(order.couponDiscount)}</span></div>}
+                {order.shippingCharge > 0 ? <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='text-gray-900'>{formatPrice(order.shippingCharge)}</span></div> : <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='font-[600] text-[#15803d]'>Free</span></div>}
+                {order.codCharge > 0 && <div className='flex justify-between text-gray-600'><span>COD fee</span><span className='text-gray-900'>{formatPrice(order.codCharge)}</span></div>}
                 <div className='flex justify-between items-baseline'><span className='text-[15px] font-[700] text-gray-900'>Total</span><span className='text-[18px] font-[800] text-gray-900'>{formatPrice(order.totalAmt)}</span></div>
               </div>
             </div>

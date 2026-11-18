@@ -3,6 +3,7 @@ import { FaRegEye } from "react-icons/fa6";
 import { FaRegEyeSlash } from "react-icons/fa6";
 import AuthLayout, { AuthDivider, AuthField, AuthSwitch, GoogleButton } from "../../components/AuthLayout";
 import { postData } from "../../utils/api";
+import { saveSession } from "../../utils/session";
 import { MyContext } from "../../App";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useNavigate } from "react-router-dom";
@@ -34,8 +35,7 @@ const Register = () => {
       const res = await postData("/api/user/google-login", { idToken });
 
       if (res?.error !== true) {
-        localStorage.setItem("accesstoken", res?.data?.accessToken);
-        localStorage.setItem("refreshtoken", res?.data?.refreshToken);
+        saveSession(res?.data?.accessToken, res?.data?.refreshToken, true);
         context.setUserData(res?.data?.user);
         context.setIsLogin(true);
         context.openAlertBox("success", "Logged in with Google!");

@@ -4,8 +4,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { IoClose } from 'react-icons/io5';
 import { FiMinus, FiPlus, FiTrash2, FiShoppingBag, FiArrowRight, FiLock } from 'react-icons/fi';
 import { MyContext } from '../../App';
-import { VARIANT_FIELDS, formatPrice } from '../../utils/formatPrice';
+import { formatPrice, optionEntries } from '../../utils/formatPrice';
 import './style.css';
+import { computeCharges } from '../../utils/storeSettings';
 
 const CartLine = ({ item, onNavigate }) => {
   const context = useContext(MyContext)
@@ -43,10 +44,10 @@ const CartLine = ({ item, onNavigate }) => {
           </button>
         </div>
 
-        {VARIANT_FIELDS.some(({ key }) => item[key]) && (
+        {optionEntries(item).length > 0 && (
           <div className='flex flex-wrap gap-1 mt-1.5'>
-            {VARIANT_FIELDS.filter(({ key }) => item[key]).map(({ key, label }) => (
-              <span key={key} className='cartLine__chip'>{label}: {item[key]}</span>
+            {optionEntries(item).map(([label, value]) => (
+              <span key={label} className='cartLine__chip'>{label}: {value}</span>
             ))}
           </div>
         )}
@@ -82,6 +83,8 @@ const CartPanel = () => {
   const subTotal = cartData.reduce((t, i) => t + (i.productId.price || 0) * (i.quantity || 1), 0)
   const mrpTotal = cartData.reduce((t, i) => t + Math.max(i.productId.oldprice || 0, i.productId.price || 0) * (i.quantity || 1), 0)
   const savings = mrpTotal - subTotal
+  const couponOff = Math.min(context?.coupon?.discount || 0, subTotal)
+  const charges = computeCharges(context?.settings, subTotal - couponOff)
 
   return (
     <div className='cartDrawer'>
@@ -128,15 +131,20 @@ const CartPanel = () => {
                   <span className='font-[600]'>− {formatPrice(savings)}</span>
                 </div>
               )}
+              {couponOff > 0 && <div className='flex justify-between text-[#15803d]'><span>Coupon ({context.coupon.code})</span><span className='font-[600]'>− {formatPrice(couponOff)}</span></div>}
               <div className='flex justify-between text-gray-600'>
                 <span>Shipping</span>
-                <span className='font-[600] text-[#15803d]'>Free</span>
+                {charges.shipping > 0 ? <span className='text-gray-900 font-[500]'>{formatPrice(charges.shipping)}</span> : <span className='font-[600] text-[#15803d]'>Free</span>}
               </div>
+              {charges.codCharge > 0 && (
+                <div className='flex justify-between text-gray-600'><span>COD fee</span><span className='text-gray-900 font-[500]'>{formatPrice(charges.codCharge)}</span></div>
+              )}
+              {charges.toFree > 0 && <div className='text-[12px] text-[#1d4ed8]'>Add {formatPrice(charges.toFree)} more for free delivery</div>}
             </div>
 
             <div className='flex justify-between items-baseline mt-3 pt-3 border-t border-gray-100'>
               <span className='text-[15px] font-[700] text-gray-900'>Total</span>
-              <span className='text-[20px] font-[800] text-gray-900'>{formatPrice(subTotal)}</span>
+              <span className='text-[20px] font-[800] text-gray-900'>{formatPrice(charges.total)}</span>
             </div>
 
             <Link to='/checkout' onClick={closePanel} className='cartDrawer__checkout'>

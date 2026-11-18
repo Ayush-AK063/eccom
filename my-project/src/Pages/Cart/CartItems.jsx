@@ -6,7 +6,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { FaAngleDown } from "react-icons/fa";
 import { FiCheck, FiHeart, FiMinus, FiPlus, FiTrash2 } from 'react-icons/fi';
 import { MyContext } from '../../App';
-import { VARIANT_FIELDS, formatPrice, getVariantOptions } from '../../utils/formatPrice';
+import { formatPrice, optionFields, selectionOf } from '../../utils/formatPrice';
 
 // Cart page ki ek line: image | details | price | qty | total
 const CartItems = ({ item }) => {
@@ -17,8 +17,9 @@ const CartItems = ({ item }) => {
 
     const qty = item.quantity || 1
     const stock = product?.countInStock || 0
-    const options = getVariantOptions(product)
-    const variantFields = VARIANT_FIELDS.filter(({ key }) => options[key].length > 0)
+    const variantFields = optionFields(product)
+    const options = Object.fromEntries(variantFields.map((g) => [g.key, g.values]))
+    const selected = selectionOf(item)
     const hasMrp = product.oldprice > product.price
     const inMyList = !!context?.getMyListItem?.(product?._id)
 
@@ -31,7 +32,7 @@ const CartItems = ({ item }) => {
     const selectVariant = (value) => {
         const key = variantMenu.key
         setVariantMenu({ anchor: null, key: null })
-        if (key && value !== null && value !== item[key]) run(() => context.updateCartVariant(item._id, key, value))
+        if (key && value !== null && value !== selected[key]) run(() => context.updateCartVariant(item._id, key, value))
     }
 
     // Wishlist mein daalo (agar nahi hai), phir cart se hatao
@@ -58,12 +59,12 @@ const CartItems = ({ item }) => {
                             {variantFields.map(({ key, label }) => (
                                 <button key={key} type='button' className='cpLine__variant'
                                     onClick={(e) => setVariantMenu({ anchor: e.currentTarget, key })}>
-                                    {label}: <b>{item[key] || 'Select'}</b> <FaAngleDown className='text-[11px]' />
+                                    {label}: <b>{selected[key] || 'Select'}</b> <FaAngleDown className='text-[11px]' />
                                 </button>
                             ))}
                             <Menu anchorEl={variantMenu.anchor} open={Boolean(variantMenu.anchor)} onClose={() => selectVariant(null)}>
                                 {(options[variantMenu.key] || []).map((value) => (
-                                    <MenuItem key={value} selected={value === item[variantMenu.key]} onClick={() => selectVariant(value)}
+                                    <MenuItem key={value} selected={value === selected[variantMenu.key]} onClick={() => selectVariant(value)}
                                         sx={{ fontSize: 13, minWidth: 90 }}>
                                         {value}
                                     </MenuItem>

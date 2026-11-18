@@ -42,11 +42,12 @@ const ForgotPassword = () => {
     if (pw.newPassword.length < 6) return context.openAlertBox("error", "Password must be at least 6 characters");
     if (pw.newPassword !== pw.confirmPassword) return context.openAlertBox("error", "Passwords do not match");
     setLoading(true);
-    const res = await postData("/api/user/reset-password", { email: localStorage.getItem("userEmail"), ...pw });
+    const res = await postData("/api/user/reset-password", { email: localStorage.getItem("userEmail"), resetToken: sessionStorage.getItem("resetToken") || "", ...pw });
     setLoading(false);
     if (!res?.error) {
       context.openAlertBox("success", res?.message || "Password updated. Please log in.");
       ["userEmail", "actionType", "otpVerified"].forEach((k) => localStorage.removeItem(k));
+      sessionStorage.removeItem("resetToken");
       history("/login");
     } else {
       context.openAlertBox("error", res?.message || "Could not reset password");

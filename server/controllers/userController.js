@@ -1,3 +1,6 @@
+import crypto from "crypto";
+import { logActivity } from "../utils/activity.js";
+import Order from "../models/Order.js";
 import CartProduct from "../models/CartProduct.js";
 import Address from "../models/Address.js";
 import MyList from "../models/MyList.js";
@@ -67,6 +70,7 @@ export const registerUserController = async (req, res) => {
     });
 
     await user.save();
+    logActivity(user._id, "signup", { method: "email" }, req);
 
     // Correct usage: pass arguments, not an object
     await sendEmailFun(
@@ -191,11 +195,12 @@ export const loginUserController = async (req, res) => {
     }
 
     const accessToken = await generateAccessToken(user._id);
-    const refreshToken = await generateRefreshToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id, req.body.remember !== false);
 
     await User.findByIdAndUpdate(user?._id, {
       last_login_date: Date.now(),
     });
+    logActivity(user?._id, "login", { method: "email" }, req);
 
     const cookiesOption = {
       httpOnly: true,
@@ -335,7 +340,7 @@ export const updateUserDetails = async (req, res) => {
   try {
     const userId = req.userId;
     // Profile se sirf naam, email, mobile badlte hain (password ke liye change-password API hai)
-    const { name, email, mobile } = req.body;
+    const { name, email, mobile, country } = req.body;
 
     const userExist = await User.findById(userId);
     if (!userExist) {
@@ -355,6 +360,7 @@ export const updateUserDetails = async (req, res) => {
         name: name ?? userExist.name,
         email: email || userExist.email,
         mobile: mobile ?? userExist.mobile,
+        country: country !== undefined ? String(country).trim().slice(0, 60) : userExist.country,
         verify_email: verifyCode !== "" ? false : userExist.verify_email,
         otp: verifyCode !== "" ? verifyCode : userExist.otp,
         otp_expires: verifyCode !== "" ? Date.now() + 10 * 60 * 1000 : userExist.otp_expires,
@@ -467,9 +473,14 @@ export const verifyForgotPasswordOtp = async (req, res) => {
 
     user.otp = null;
     user.otp_expires = null;
+    // Password badalne ke liye 15 min ka ek-baar token (sirf hash DB mein)
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user.resetTokenExpires = new Date(Date.now() + 15 * 60 * 1000);
     await user.save();
 
     return res.status(200).json({
+      resetToken,
       message: "OTP verified successfully",
       success: true,
       error: false,
@@ -483,122 +494,87 @@ export const verifyForgotPasswordOtp = async (req, res) => {
   }
 };
 
+// POST /api/user/reset-password { email, resetToken, newPassword, confirmPassword } — forgot password (bina login)
+// Token sirf OTP verify karne par milta hai; ek baar chalta hai, 15 min.
 export const resetPasswordController = async (req, res) => {
   try {
-    const { email, oldPassword, newPassword, confirmPassword, isGoogleUser } = req.body;
-
-    // For Google users, old password is not required
-    if (!email || (!isGoogleUser && !oldPassword) || !newPassword || !confirmPassword) {
-      return res.status(400).json({
-        message: isGoogleUser
-          ? "Email, New Password and Confirm Password are required"
-          : "Email, Old Password, New Password and Confirm Password are required",
-        error: true,
-        success: false,
-      });
+    const { email, resetToken, newPassword, confirmPassword } = req.body;
+    if (!email || !resetToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "Please verify the code sent to your email first", error: true, success: false });
     }
-
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res
-        .status(400)
-        .json({ message: "User Not Found!", error: true, success: false });
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters", error: true, success: false });
     }
-
-    // Only verify old password for non-Google users
-    if (!isGoogleUser) {
-      const checkPassword = await bcrypt.compare(oldPassword, user.password);
-      if (!checkPassword) {
-        return res
-          .status(400)
-          .json({ message: "Invalid Old Password", error: true, success: false });
-      }
-    }
-
     if (newPassword !== confirmPassword) {
-      return res.status(400).json({
-        message: "New Password and Confirm Password do not match",
-        error: true,
-        success: false,
-      });
+      return res.status(400).json({ message: "New Password and Confirm Password do not match", error: true, success: false });
     }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashPassword = await bcrypt.hash(newPassword, salt);
-
-    user.password = hashPassword;
-    // Mark that this user now has a password — loginWithGoogle stays true
-    // so both Google login and email/password login continue to work
+    const user = await User.findOne({ email }).select("+resetTokenHash +resetTokenExpires");
+    const hash = crypto.createHash("sha256").update(String(resetToken)).digest("hex");
+    if (!user || !user.resetTokenHash || user.resetTokenHash !== hash || !user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+      return res.status(400).json({ message: "This reset link has expired. Please request a new code.", error: true, success: false });
+    }
+    user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
     user.hasPassword = true;
+    user.resetTokenHash = "";
+    user.resetTokenExpires = null;
     await user.save();
-
-    return res.status(200).json({
-      message: isGoogleUser ? "Password set successfully" : "Password reset successfully",
-      success: true,
-      error: false,
-    });
+    logActivity(user._id, "password_reset", {}, req);
+    return res.status(200).json({ message: "Password reset successfully", success: true, error: false });
   } catch (error) {
-    res.status(500).json({
-      message: error.message || error,
-      error: true,
-      success: false,
-    });
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
 };
 
-export const refreshTokenController = async (req, res) => {
-  // Implementation for refresh token logic goes here
+// POST /api/user/change-password { oldPassword?, newPassword, confirmPassword } — logged-in user
+// Jiska password hai use purana dena hoga; sirf Google wale (bina password) naya set kar sakte hain.
+export const changePasswordController = async (req, res) => {
   try {
-    const refreshToken =
-      req.cookies.refreshToken || req?.headers?.authorization?.split(" ")[1];
-    if (!refreshToken) {
-      return res
-        .status(401)
-        .json({
-          message: "No refresh token provided",
-          error: true,
-          success: false,
-        });
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: "User not found", error: true, success: false });
+    const needsOld = !!user.password;
+    if (needsOld && !oldPassword) return res.status(400).json({ message: "Please enter your current password", error: true, success: false });
+    if (!newPassword || String(newPassword).length < 6) return res.status(400).json({ message: "New password must be at least 6 characters", error: true, success: false });
+    if (newPassword !== confirmPassword) return res.status(400).json({ message: "New Password and Confirm Password do not match", error: true, success: false });
+    if (needsOld && !(await bcrypt.compare(oldPassword, user.password))) {
+      return res.status(400).json({ message: "Current password is incorrect", error: true, success: false });
     }
-
-    const verifyToken = await jwt.verify(
-      refreshToken,
-      process.env.JWT_SECRET_REFRESH_TOKEN
-    );
-
-    if (!verifyToken) {
-      return res
-        .status(403)
-        .json({
-          message: "Invalid refresh token",
-          error: true,
-          success: false,
-        });
-    }
-
-    const userId = verifyToken?.id;
-
-    const newAccessToken = await generateAccessToken(userId);
-
-    const cookiesOption = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "None",
-    };
-    res.cookie("accessToken", newAccessToken, cookiesOption);
-
-    return res.status(200).json({
-      message: "New Access Token generated",
-      error: false,
-      success: true,
-      data: {
-        accessToken: newAccessToken,
-      },
-    });
+    user.password = await bcrypt.hash(newPassword, await bcrypt.genSalt(10));
+    user.hasPassword = true;
+    await user.save();
+    logActivity(user._id, "password_change", {}, req);
+    return res.status(200).json({ message: needsOld ? "Password changed successfully" : "Password set successfully", success: true, error: false });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: error.message || error, error: true, success: false });
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// POST /api/user/refresh-token  (Authorization: Bearer <refreshToken>) → naya access token
+// Token DB wale se match hona chahiye (logout = revoke), account active hona chahiye.
+export const refreshTokenController = async (req, res) => {
+  try {
+    const refreshToken = req?.headers?.authorization?.split(" ")[1] || req.cookies.refreshToken;
+    if (!refreshToken || refreshToken === "null") {
+      return res.status(401).json({ message: "No refresh token provided", error: true, success: false });
+    }
+    let payload;
+    try {
+      payload = jwt.verify(refreshToken, process.env.JWT_SECRET_REFRESH_TOKEN);
+    } catch {
+      return res.status(401).json({ message: "Session expired. Please log in again.", error: true, success: false });
+    }
+    const user = await User.findById(payload.id).select("refreshToken status");
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(401).json({ message: "Session expired. Please log in again.", error: true, success: false });
+    }
+    if (user.status && user.status !== "active") {
+      return res.status(403).json({ message: "Your account has been suspended. Please contact support.", error: true, success: false, suspended: true });
+    }
+    const newAccessToken = await generateAccessToken(user._id);
+    res.cookie("accessToken", newAccessToken, { httpOnly: true, secure: true, sameSite: "None" });
+    return res.status(200).json({ message: "New Access Token generated", error: false, success: true, data: { accessToken: newAccessToken } });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
 };
 
@@ -714,6 +690,7 @@ export const googleLoginController = async (req, res) => {
         status: "active",
       });
       await user.save();
+      logActivity(user._id, "signup", { method: "google" }, req);
     } else {
       // Existing user — update googleId and flag if not already set
       let changed = false;
@@ -742,9 +719,10 @@ export const googleLoginController = async (req, res) => {
 
     // Issue your existing JWT tokens
     const accessToken = await generateAccessToken(user._id);
-    const refreshToken = await generateRefreshToken(user._id);
+    const refreshToken = await generateRefreshToken(user._id, req.body.remember !== false);
 
     await User.findByIdAndUpdate(user._id, { last_login_date: Date.now() });
+    logActivity(user._id, "login", { method: "google" }, req);
 
     const cookiesOption = {
       httpOnly: true,
@@ -778,10 +756,29 @@ export const googleLoginController = async (req, res) => {
 // Sirf safe fields (password / otp / tokens kabhi nahi)
 export const getAllUsersController = async (req, res) => {
   try {
-    const users = await User.find()
-      .select("name email mobile avatar role verify_email status createdAt")
-      .sort({ createdAt: -1 });
-    return res.status(200).json({ error: false, success: true, data: users });
+    const [users, orderAgg] = await Promise.all([
+      User.find()
+        .select("name email mobile avatar role verify_email status createdAt last_login_date googleId")
+        .sort({ createdAt: -1 })
+        .lean(),
+      // har user ke orders + kharcha (cancelled ko spent mein nahi ginte)
+      Order.aggregate([
+        {
+          $group: {
+            _id: "$userId",
+            orders: { $sum: 1 },
+            spent: { $sum: { $cond: [{ $ne: ["$orderStatus", "cancelled"] }, "$totalAmt", 0] } },
+            lastOrderAt: { $max: "$createdAt" },
+          },
+        },
+      ]),
+    ]);
+    const byUser = Object.fromEntries(orderAgg.map((o) => [String(o._id), o]));
+    const data = users.map(({ googleId, ...u }) => {
+      const o = byUser[String(u._id)];
+      return { ...u, signupMethod: googleId ? "google" : "email", orders: o?.orders || 0, spent: o?.spent || 0, lastOrderAt: o?.lastOrderAt || null };
+    });
+    return res.status(200).json({ error: false, success: true, data });
   } catch (error) {
     return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
@@ -816,6 +813,56 @@ export const deleteMultipleUsersController = async (req, res) => {
       success: true,
       deletedCount: result.deletedCount,
     });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// ── Admin: ek user ki details + status / role ──
+// PUT /api/user/admin/:id { status?: "active"|"Suspended", role?: "user"|"admin" }
+export const adminUpdateUserController = async (req, res) => {
+  try {
+    if (String(req.params.id) === String(req.userId)) {
+      return res.status(400).json({ message: "You can't change your own account here", error: true, success: false });
+    }
+    const upd = {};
+    if (["active", "Suspended"].includes(req.body.status)) upd.status = req.body.status;
+    if (["user", "admin"].includes(req.body.role)) upd.role = req.body.role;
+    if (!Object.keys(upd).length) return res.status(400).json({ message: "Nothing to update", error: true, success: false });
+    if (upd.role === "user") {
+      const admins = await User.countDocuments({ role: "admin", _id: { $ne: req.params.id } });
+      if (!admins) return res.status(400).json({ message: "At least one admin is required", error: true, success: false });
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, upd, { new: true }).select("name email role status");
+    if (!user) return res.status(404).json({ message: "User not found", error: true, success: false });
+    return res.status(200).json({ message: "User updated", error: false, success: true, data: user });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// GET /api/user/admin/:id/details — profile + addresses + orders + wishlist + cart
+export const adminUserDetailsController = async (req, res) => {
+  try {
+    const { default: Address } = await import("../models/Address.js");
+    const { default: CartProduct } = await import("../models/CartProduct.js");
+    const MyListMod = await import("../models/MyList.js");
+    const MyList = MyListMod.default || MyListMod.MyList;
+    const user = await User.findById(req.params.id)
+      .select("name email mobile avatar role verify_email status createdAt last_login_date googleId country").lean();
+    if (!user) return res.status(404).json({ message: "User not found", error: true, success: false });
+    const [addresses, orders, wishlist, cart] = await Promise.all([
+      Address.find({ userId: user._id }).lean(),
+      Order.find({ userId: user._id }).sort({ createdAt: -1 }).lean(),
+      MyList.find({ userId: String(user._id) }).lean().then(async (list) => {
+        const { default: Product } = await import("../models/Product.js");
+        const ps = await Product.find({ _id: { $in: list.map((x) => x.productId) } }).select("name images price").lean();
+        return list.map((x) => ({ ...x, productId: ps.find((p) => String(p._id) === String(x.productId)) || null }));
+      }),
+      CartProduct.find({ userId: user._id }).populate("productId", "name images price").lean(),
+    ]);
+    const { googleId, ...u } = user;
+    return res.status(200).json({ error: false, success: true, data: { user: { ...u, signupMethod: googleId ? "google" : "email" }, addresses, orders, wishlist, cart } });
   } catch (error) {
     return res.status(500).json({ message: error.message || error, error: true, success: false });
   }

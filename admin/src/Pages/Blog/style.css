@@ -1,0 +1,7 @@
+.blgThumb { width: 72px; height: 52px; border-radius: 6px; border: 1px solid #f3f4f6; background: #f9fafb; object-fit: cover; flex-shrink: 0; }
+.blgTitle { width: 100%; border: 0; outline: none; font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -.01em; background: transparent; }
+.blgTitle::placeholder { color: #d1d5db; }
+.blgBody { width: 100%; min-height: 380px; border: 0; outline: none; resize: vertical; font-size: 15px; line-height: 1.75; color: #1f2937; background: transparent; }
+.blgBody::placeholder { color: #9ca3af; }
+.blgPreview { border: 1px solid #e5e7eb; border-radius: 6px; overflow: hidden; background: #fff; }
+.blgPreview img { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #f3f4f6; display: block; }

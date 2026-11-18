@@ -18,6 +18,9 @@ const CartProductSchema = new mongoose.Schema(
     size: { type: String, default: "" },
     productRam: { type: String, default: "" },
     productWeight: { type: String, default: "" },
+    color: { type: String, default: "" },
+    // Naya: { "Size": "M", "Flavour": "Chocolate" }
+    options: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );

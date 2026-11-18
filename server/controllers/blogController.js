@@ -60,6 +60,16 @@ export const deleteBlogImage = async (req, res) => {
     }
 };
 
+// excerpt / author / tags / status saaf karo
+const extraFields = (body = {}) => ({
+    excerpt: String(body.excerpt || "").trim().slice(0, 300),
+    author: String(body.author || "").trim().slice(0, 80),
+    tags: [...new Set((Array.isArray(body.tags) ? body.tags : []).map((t) => String(t).trim().slice(0, 30)).filter(Boolean))].slice(0, 10),
+    status: body.status === "draft" ? "draft" : "published",
+});
+const isAdminReq = (req) => req.query.admin === "1";
+const PUBLIC = { status: { $ne: "draft" } };
+
 export const addBlog = async (req, res) => {
     try {
         const { title, description, images } = req.body;
@@ -71,7 +81,7 @@ export const addBlog = async (req, res) => {
             return res.status(400).json({ error: true, success: false, message: "At least one image is required" });
         }
 
-        const blog = await new Blog({ title, description, images }).save();
+        const blog = await new Blog({ title, description, images, ...extraFields(req.body) }).save();
 
         return res.status(201).json({ error: false, success: true, message: "Blog added successfully", data: blog });
     } catch (error) {
@@ -84,8 +94,10 @@ export const getBlogs = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const perPage = parseInt(req.query.perPage) || 10000;
 
-        const totalBlogs = await Blog.countDocuments();
-        const blogs = await Blog.find()
+        const filter = isAdminReq(req) ? {} : { ...PUBLIC };
+        if (req.query.tag) filter.tags = String(req.query.tag);
+        const totalBlogs = await Blog.countDocuments(filter);
+        const blogs = await Blog.find(filter)
             .sort({ createdAt: -1 })
             .skip((page - 1) * perPage)
             .limit(perPage);
@@ -108,7 +120,7 @@ export const getBlog = async (req, res) => {
             return res.status(404).json({ error: true, success: false, message: "Blog not found" });
         }
         const blog = await Blog.findById(req.params.id);
-        if (!blog) {
+        if (!blog || (blog.status === "draft" && !isAdminReq(req))) {
             return res.status(404).json({ error: true, success: false, message: "Blog not found" });
         }
         return res.status(200).json({ error: false, success: true, data: blog });
@@ -140,6 +152,7 @@ export const updateBlog = async (req, res) => {
         oldBlog.title = title;
         oldBlog.description = description;
         oldBlog.images = images;
+        Object.assign(oldBlog, extraFields(req.body));
         await oldBlog.save();
 
         return res.status(200).json({ error: false, success: true, message: "Blog updated successfully", data: oldBlog });

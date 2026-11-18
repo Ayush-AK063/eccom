@@ -1,4 +1,5 @@
 import axios from "axios";
+import { refreshAccessToken, shouldRefresh } from "./session";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -30,7 +31,12 @@ export const postData = async (url, formData, options = {}) => {
       fetchOptions.credentials = "include";
     }
 
-    const response = await fetch(`${apiUrl}${url}`, fetchOptions);
+    let response = await fetch(`${apiUrl}${url}`, fetchOptions);
+    // Token expire → refresh karke ek baar dobara
+    if (shouldRefresh(response.status, url)) {
+      const token = await refreshAccessToken();
+      if (token) response = await fetch(`${apiUrl}${url}`, { ...fetchOptions, headers: { ...headers, Authorization: `Bearer ${token}` } });
+    }
 
     const data = await response.json();
 

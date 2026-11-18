@@ -4,7 +4,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { MdOutlineShoppingCart } from "react-icons/md";
 import { FaMinus, FaPlus } from "react-icons/fa6";
 import { MyContext } from '../../App';
-import { isSameCartItem, isVariantComplete } from '../../utils/formatPrice';
+import { isSameCartItem, isVariantComplete, variantView } from '../../utils/formatPrice';
 
 // Product (+ chuna gaya variant) cart mein nahi → "Add to Cart" button
 // Cart mein hai → [-] qty [+]  (qty 0 = item remove)
@@ -19,7 +19,10 @@ const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, alwaysA
     const cartItem = variantReady
         ? context?.cartData?.find((c) => isSameCartItem(c, product, variant))
         : null
-    const outOfStock = !(product?.countInStock > 0)
+    // Variant chuna ho to uska stock, warna product ka total
+    const stock = variantReady ? variantView(product, variant).stock : product?.countInStock || 0
+    const limit = product?.maxOrderQty > 0 ? Math.min(stock, product.maxOrderQty) : stock
+    const outOfStock = !(stock > 0)
 
     const run = async (fn) => {
         if (isLoading) return
@@ -33,7 +36,7 @@ const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, alwaysA
 
     if (cartItem && !alwaysAdd) {
         const qty = cartItem.quantity || 1
-        const maxReached = product?.countInStock > 0 && qty >= product.countInStock
+        const maxReached = qty >= limit
         return (
             <div className={`flex items-center justify-between overflow-hidden border rounded-md ${compact ? 'border-primary h-[38px]' : 'border-[rgba(0,0,0,0.15)]'} ${className}`}>
                 <Button className='!min-w-[35px] !w-[35px] !h-[35px] !rounded-none !text-black'
@@ -61,8 +64,7 @@ const AddToCart = ({ product, quantity = 1, variant = {}, onNeedVariant, alwaysA
         }
         if (cartItem) {
             // alwaysAdd: pehle se cart mein -> qty badhao
-            const max = product?.countInStock || Infinity
-            if ((cartItem.quantity || 1) >= max) return context.openAlertBox('error', 'No more stock available')
+            if ((cartItem.quantity || 1) >= limit) return context.openAlertBox('error', product?.maxOrderQty > 0 && limit === product.maxOrderQty ? `Max ${limit} per order` : 'No more stock available')
             const next = (cartItem.quantity || 1) + quantity
             return run(async () => {
                 const res = await context.updateCartQty(cartItem._id, next)

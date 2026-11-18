@@ -41,6 +41,7 @@ const Verify = () => {
       context.openAlertBox('success', res?.message || 'Verified');
       if (isForgot) {
         localStorage.setItem('otpVerified', '1');
+        sessionStorage.setItem('resetToken', res?.resetToken || '');
         history('/forgot-password');
       } else {
         localStorage.removeItem('userEmail');

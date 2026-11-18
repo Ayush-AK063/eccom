@@ -131,6 +131,12 @@ const Reviews = ({ productId, reviews, onReviewAdded }) => {
                                     </div>
                                     <div className='mt-3'><Rating value={r.rating} readOnly size='small' /></div>
                                     <div className='mt-1.5 text-[14px] leading-[22px] text-gray-700 whitespace-pre-line'>{r.review}</div>
+                                    {r.reply && (
+                                        <div className='mt-3 ml-4 pl-3 border-l-2 border-gray-200'>
+                                            <div className='text-[12px] font-[700] text-gray-900'>Response from the store</div>
+                                            <div className='mt-0.5 text-[13px] leading-[20px] text-gray-600 whitespace-pre-line'>{r.reply}</div>
+                                        </div>
+                                    )}
                                 </li>
                             ))}
                         </ul>

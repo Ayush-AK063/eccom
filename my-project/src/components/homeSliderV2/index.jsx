@@ -10,7 +10,7 @@ import { EffectFade, Navigation, Pagination, Autoplay } from 'swiper/modules'
 import { Button } from '@mui/material'
 import { Link } from 'react-router-dom'
 
-const HomeSliderV2 = ({ slides = [] }) => {
+const HomeSliderV2 = ({ slides = [], buttonText = "SHOP NOW" }) => {
   if (!slides.length) return null
 
   return (
@@ -55,7 +55,7 @@ const HomeSliderV2 = ({ slides = [] }) => {
                 )}
                 <div className='w-full relative -bottom-[100%] opacity-0 btn_'>
                   <Link to={slide.redirectUrl || '/'}>
-                    <Button className='btn-org'>SHOP NOW</Button>
+                    <Button className='btn-org'>{buttonText}</Button>
                   </Link>
                 </div>
               </div>

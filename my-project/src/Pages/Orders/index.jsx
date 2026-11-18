@@ -5,8 +5,8 @@ import { FiCheck, FiChevronDown, FiChevronRight, FiMapPin, FiPackage, FiSearch, 
 import { LiaMoneyBillWaveSolid } from 'react-icons/lia'
 import AccountSidebar from '../../components/AccountSidebar'
 import { MyContext } from '../../App'
-import { getData } from '../../utils/api'
-import { VARIANT_FIELDS, formatPrice } from '../../utils/formatPrice'
+import { getData, postData, putData } from '../../utils/api'
+import { formatPrice, optionEntries } from '../../utils/formatPrice'
 import '../MyAccount/style.css'
 import './style.css'
 
@@ -38,7 +38,81 @@ const TABS = [
 ]
 const isActive = (s) => ['pending', 'confirmed', 'confirm', 'shipped'].includes(s || 'pending')
 
-const OrderCard = ({ order }) => {
+const CANCEL_REASONS = ['Ordered by mistake', 'Found a better price', 'Delivery is taking too long', 'Want to change items or address', 'Other']
+const RETURN_REASONS = ['Damaged or defective', 'Wrong item received', 'Size or fit issue', 'Not as described', 'Quality not as expected', 'Other']
+const RETURN_STATUS = {
+  requested: ['Return requested', 'We are reviewing your request.', 'bg-[#fffbeb] text-[#92400e]'],
+  approved: ['Return approved', 'We will arrange the pickup soon.', 'bg-[#eff6ff] text-[#1d4ed8]'],
+  rejected: ['Return declined', '', 'bg-[#fef2f2] text-[#b91c1c]'],
+  completed: ['Return completed', '', 'bg-[#f0fdf4] text-[#15803d]'],
+}
+
+// Cancel (ship se pehle) / Return (delivery ke baad) — chhota inline form
+const OrderActions = ({ order, onUpdate }) => {
+  const context = useContext(MyContext)
+  const [mode, setMode] = useState(null)
+  const [reason, setReason] = useState('')
+  const [type, setType] = useState('return')
+  const [comment, setComment] = useState('')
+  const [busy, setBusy] = useState(false)
+  const status = order.orderStatus
+  const rr = order.returnRequest || {}
+  const canCancel = ['pending', 'confirmed'].includes(status)
+  const canReturn = status === 'delivered' && !rr.status
+
+  const submit = async () => {
+    if (!reason) return context.openAlertBox('error', 'Please choose a reason')
+    setBusy(true)
+    const res = mode === 'cancel'
+      ? await putData(`/api/order/cancel/${order._id}`, { reason })
+      : await postData(`/api/order/return/${order._id}`, { reason, type, comment })
+    setBusy(false)
+    if (res?.error === false) { context.openAlertBox('success', res.message); onUpdate(res.data); setMode(null) }
+    else context.openAlertBox('error', res?.message || 'Something went wrong')
+  }
+
+  return (
+    <div className='mt-4 flex flex-col gap-3'>
+      {rr.status && (
+        <div className={`px-3 py-2 rounded-md text-[13px] ${RETURN_STATUS[rr.status]?.[2] || ''}`}>
+          <b>{RETURN_STATUS[rr.status]?.[0]}</b> · {rr.type === 'replace' ? 'Replacement' : 'Return'} — {rr.reason}
+          {(rr.adminNote || RETURN_STATUS[rr.status]?.[1]) && <div className='mt-0.5'>{rr.adminNote || RETURN_STATUS[rr.status][1]}</div>}
+        </div>
+      )}
+      {!mode && (canCancel || canReturn) && (
+        <div className='flex flex-wrap gap-2'>
+          {canCancel && <button type='button' className='accBtn accBtn--light !min-w-0 hover:!border-[#dc2626] hover:!text-[#dc2626]' onClick={() => { setMode('cancel'); setReason('') }}>Cancel order</button>}
+          {canReturn && <button type='button' className='accBtn accBtn--light !min-w-0' onClick={() => { setMode('return'); setReason('') }}>Return or replace</button>}
+        </div>
+      )}
+      {mode && (
+        <div className='p-4 rounded-md border border-gray-200 bg-[#fafafa] flex flex-col gap-3'>
+          <div className='text-[14px] font-[700] text-gray-900'>{mode === 'cancel' ? 'Cancel this order?' : 'Request a return'}</div>
+          {mode === 'return' && (
+            <div className='flex gap-2'>
+              {[['return', 'Return for refund'], ['replace', 'Replacement']].map(([k, l]) => (
+                <button key={k} type='button' onClick={() => setType(k)} className={`h-[36px] px-3 rounded-md border text-[13px] font-[600] ${type === k ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white'}`}>{l}</button>
+              ))}
+            </div>
+          )}
+          <select value={reason} onChange={(e) => setReason(e.target.value)} className='h-[40px] px-3 rounded-md border border-gray-200 bg-white text-[13px] outline-none focus:border-gray-900'>
+            <option value=''>Choose a reason</option>
+            {(mode === 'cancel' ? CANCEL_REASONS : RETURN_REASONS).map((r) => <option key={r}>{r}</option>)}
+          </select>
+          {mode === 'return' && <textarea value={comment} onChange={(e) => setComment(e.target.value)} maxLength={500} rows={3} placeholder='Tell us more (optional)' className='p-3 rounded-md border border-gray-200 bg-white text-[13px] outline-none focus:border-gray-900 resize-none' />}
+          <div className='flex gap-2'>
+            <button type='button' disabled={busy} onClick={submit} className={`h-[38px] px-4 rounded-md text-white text-[13px] font-[600] disabled:opacity-60 ${mode === 'cancel' ? 'bg-[#dc2626] hover:bg-[#b91c1c]' : 'bg-gray-900 hover:bg-primary'}`}>
+              {busy ? 'Please wait…' : mode === 'cancel' ? 'Yes, cancel order' : 'Send request'}
+            </button>
+            <button type='button' onClick={() => setMode(null)} className='h-[38px] px-4 rounded-md border border-gray-200 bg-white text-[13px] font-[600]'>Keep order</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const OrderCard = ({ order, onUpdate }) => {
   const [open, setOpen] = useState(false)
   const status = order.orderStatus || 'pending'
   const st = STATUS[status] || STATUS.pending
@@ -100,6 +174,18 @@ const OrderCard = ({ order }) => {
           </ol>
         )}
 
+        {order.tracking?.number && status !== 'cancelled' && (
+          <div className='mt-4 flex flex-wrap items-center gap-2 px-3 py-2 rounded-md bg-[#f9fafb] border border-gray-100 text-[13px]'>
+            <FiTruck className='text-gray-500' />
+            <span><b>{order.tracking.courier || 'Courier'}</b> · Tracking no. <b>{order.tracking.number}</b></span>
+            {order.tracking.url && <a href={order.tracking.url} target='_blank' rel='noreferrer' className='ml-auto font-[600] text-primary hover:underline'>Track package</a>}
+          </div>
+        )}
+        {status === 'cancelled' && order.cancelledBy && (
+          <div className='mt-2 text-[12px] text-gray-500'>Cancelled by {order.cancelledBy === 'customer' ? 'you' : 'the store'}{order.cancelReason ? ` — ${order.cancelReason}` : ''}</div>
+        )}
+        <OrderActions order={order} onUpdate={onUpdate} />
+
         {/* Details */}
         {open && (
           <div className='mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_240px] gap-6'>
@@ -110,7 +196,7 @@ const OrderCard = ({ order }) => {
                   <div className='min-w-0 flex-1'>
                     <Link to={`/product/${p.productId}`} className='text-[14px] font-[600] text-gray-900 line-clamp-1 hover:text-primary'>{p.productTitle}</Link>
                     <div className='text-[12px] text-gray-500 mt-0.5'>
-                      {VARIANT_FIELDS.filter(({ key }) => p[key]).map(({ key, label }) => `${label}: ${p[key]}`).concat(`Qty ${p.quantity} × ${formatPrice(p.price)}`).join(' · ')}
+                      {optionEntries(p).map(([label, value]) => `${label}: ${value}`).concat(`Qty ${p.quantity} × ${formatPrice(p.price)}`).join(' · ')}
                     </div>
                   </div>
                   <div className='text-[14px] font-[700] text-gray-900 whitespace-nowrap'>{formatPrice(p.subTotal || p.price * p.quantity)}</div>
@@ -129,7 +215,9 @@ const OrderCard = ({ order }) => {
                 <div className='mt-1.5 text-gray-900 font-[600]'>Cash on Delivery</div>
               </div>
               <div className='pt-3 border-t border-dashed border-gray-200 flex flex-col gap-1'>
-                <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='text-[#15803d] font-[600]'>Free</span></div>
+                {order.couponDiscount > 0 && <div className='flex justify-between text-gray-600'><span>Coupon ({order.couponCode})</span><span className='text-[#15803d] font-[600]'>− {formatPrice(order.couponDiscount)}</span></div>}
+                {order.shippingCharge > 0 ? <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='text-gray-900'>{formatPrice(order.shippingCharge)}</span></div> : <div className='flex justify-between text-gray-600'><span>Shipping</span><span className='font-[600] text-[#15803d]'>Free</span></div>}
+                {order.codCharge > 0 && <div className='flex justify-between text-gray-600'><span>COD fee</span><span className='text-gray-900'>{formatPrice(order.codCharge)}</span></div>}
                 <div className='flex justify-between'><span className='font-[700] text-gray-900'>Total</span><span className='font-[800] text-gray-900'>{formatPrice(order.totalAmt)}</span></div>
               </div>
             </div>
@@ -227,7 +315,7 @@ const Orders = () => {
                 {!orders.length && <Link to='/productListing' className='mt-5 accBtn accBtn--dark'>Start shopping</Link>}
               </div>
             ) : (
-              shown.map((order) => <OrderCard key={order._id} order={order} />)
+              shown.map((order) => <OrderCard key={order._id} order={order} onUpdate={(o) => setOrders((l) => l.map((x) => (x._id === o._id ? o : x)))} />)
             )}
           </div>
         </div>

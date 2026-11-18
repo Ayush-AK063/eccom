@@ -1,4 +1,6 @@
 import { Category } from "../models/Category.js";
+import Product from "../models/Product.js";
+import { resetHiddenCategories } from "../utils/hiddenCategories.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
@@ -43,8 +45,40 @@ export const uploadImages = async (req, res) => {
   }
 };
 
+// Attribute template saaf karo
+const ATTR_TYPES = ["text", "number", "select", "boolean", "textarea"];
+const cleanAttributes = (list) =>
+  (Array.isArray(list) ? list : []).slice(0, 60).map((a) => {
+    const label = String(a?.label || "").trim().slice(0, 80);
+    const key = (String(a?.key || label).trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")).slice(0, 60);
+    return {
+      key, label,
+      type: ATTR_TYPES.includes(a?.type) ? a.type : "text",
+      unit: String(a?.unit || "").trim().slice(0, 20),
+      options: (Array.isArray(a?.options) ? a.options : []).map((o) => String(o).trim().slice(0, 80)).filter(Boolean).slice(0, 50),
+      group: String(a?.group || "General").trim().slice(0, 60) || "General",
+      required: !!a?.required,
+    };
+  }).filter((a) => a.key && a.label);
+
+// PUT /api/category/:id/attributes  { attributes: [...] }
+export const updateCategoryAttributes = async (req, res) => {
+  try {
+    const category = await Category.findByIdAndUpdate(
+      req.params.id,
+      { attributes: cleanAttributes(req.body.attributes) },
+      { new: true }
+    );
+    if (!category) return res.status(404).json({ message: "Category not found", error: true, success: false });
+    return res.status(200).json({ category, message: "Attributes saved", success: true, error: false });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
 export const createCategory = async (req, res) => {
   try {
+    resetHiddenCategories();
     let category = new Category({
       name: req.body.name,
       images: imagesArr,
@@ -76,11 +110,28 @@ export const createCategory = async (req, res) => {
 
 export const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find();
+    // Admin (?admin=1) ko sab, store ko sirf active. Order: sortOrder, phir bani kab.
+    const all = req.query.admin === "1";
+    const categories = await Category.find(all ? {} : { isActive: { $ne: false } }).sort({ sortOrder: 1, createdAt: 1 });
     const categoryMap = {};
 
+    // Har category (kisi bhi level) mein kitne products hain — admin list ke liye
+    const counts = {};
+    try {
+      const [agg] = await Product.aggregate([
+        { $facet: {
+          cat: [{ $group: { _id: "$catId", n: { $sum: 1 } } }],
+          sub: [{ $group: { _id: "$subCatId", n: { $sum: 1 } } }],
+          third: [{ $group: { _id: "$thirdSubCatId", n: { $sum: 1 } } }],
+        } },
+      ]);
+      [...(agg?.cat || []), ...(agg?.sub || []), ...(agg?.third || [])].forEach((r) => {
+        if (r._id) counts[String(r._id)] = (counts[String(r._id)] || 0) + r.n;
+      });
+    } catch { /* counts optional */ }
+
     categories.forEach((cat) => {
-      categoryMap[cat._id] = { ...cat._doc, children: [] };
+      categoryMap[cat._id] = { ...cat._doc, productCount: counts[String(cat._id)] || 0, children: [] };
     });
 
     const rootCategories = [];
@@ -209,6 +260,7 @@ export const deleteImageFromCloudinary = async (req, res) => {
 
 export const deleteCategory = async (req, res) => {
   try {
+    resetHiddenCategories();
     const category = await Category.findById(req.params.id);
 
     if (!category) {
@@ -267,6 +319,7 @@ export const deleteCategory = async (req, res) => {
 
 export const deleteMultipleCategories = async (req, res) => {
   try {
+    resetHiddenCategories();
     const { ids } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -313,11 +366,13 @@ export const deleteMultipleCategories = async (req, res) => {
 
 export const updateCategory = async (req, res) => {
   try {
+    resetHiddenCategories();
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       {
         name: req.body.name,
-        images: imagesArr.length > 0 ? imagesArr : req.body.images,
+        // images na bheje to purani images rakho (pehle undefined set ho jaata tha)
+        ...(imagesArr.length > 0 ? { images: imagesArr } : Array.isArray(req.body.images) ? { images: req.body.images } : {}),
         parentCatName: req.body.parentCatName || null,
         parentCatId: req.body.parentCatId || null,
       },
@@ -342,5 +397,32 @@ export const updateCategory = async (req, res) => {
     return res
       .status(500)
       .json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// PUT /api/category/reorder { ids: [...] } — ek hi level ke siblings, naya order
+export const reorderCategories = async (req, res) => {
+  try {
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).slice(0, 500);
+    await Promise.all(ids.map((id, i) => Category.updateOne({ _id: id }, { sortOrder: i })));
+    return res.status(200).json({ message: "Order saved", success: true, error: false });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// PUT /api/category/:id/visibility { isActive?, showInMenu? }
+export const updateCategoryVisibility = async (req, res) => {
+  try {
+    resetHiddenCategories();
+    const upd = {};
+    if (typeof req.body.isActive === "boolean") upd.isActive = req.body.isActive;
+    if (typeof req.body.showInMenu === "boolean") upd.showInMenu = req.body.showInMenu;
+    const category = await Category.findByIdAndUpdate(req.params.id, upd, { new: true });
+    if (!category) return res.status(404).json({ message: "Category not found", error: true, success: false });
+    resetHiddenCategories(); // update ke baad bhi (beech mein koi purani list cache na kar le)
+    return res.status(200).json({ category, message: "Saved", success: true, error: false });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
 };

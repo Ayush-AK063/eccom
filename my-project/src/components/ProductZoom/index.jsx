@@ -7,12 +7,19 @@ import './style.css';
 const FALLBACK = "https://dummyimage.com/600x600/f3f4f6/9ca3af&text=No+Image";
 
 // Product gallery: left thumbnails + main image (hover zoom). Page aur Quick View dono mein.
-const ProductZoom = ({ item }) => {
+const ProductZoom = ({ item, activeSrc }) => {
     const images = item?.images?.length > 0 ? item.images : [FALLBACK];
     const [index, setIndex] = useState(0);
 
     // Dusra product khula to pehli image
     useEffect(() => { setIndex(0); }, [item?._id]);
+
+    // Variant ki photo chuni gayi → wahi dikhao
+    useEffect(() => {
+        if (!activeSrc) return;
+        const i = images.indexOf(activeSrc);
+        if (i >= 0) setIndex(i);
+    }, [activeSrc]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const go = (dir) => setIndex((i) => (i + dir + images.length) % images.length);
 

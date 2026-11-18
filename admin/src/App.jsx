@@ -11,9 +11,7 @@ import Products from "./Pages/Products";
 import AddProduct from "./Pages/Products/addProduct";
 import EditProduct from "./Pages/Products/editProduct";
 import ViewProduct from "./Pages/Products/viewProduct";
-import AddProductRam from "./Pages/Products/addProductRam";
-import AddProductWeight from "./Pages/Products/addProductWeight";
-import AddProductSize from "./Pages/Products/addProductSize";
+import CategoryTemplate from "./Pages/Category/templates/CategoryTemplate";
 import toast, { Toaster } from "react-hot-toast";
 
 import Dialog from "@mui/material/Dialog";
@@ -30,16 +28,18 @@ import ViewHomeSlide from "./Pages/HomeSliderBanners/viewHomeSlide";
 import BlogList from "./Pages/Blog";
 import BlogForm from "./Pages/Blog/blogForm";
 import CategoryList from "./Pages/Category";
-import AddCategory from "./Pages/Category/addCategory";
-import SubCatList from "./Pages/Category/subCatList";
-import AddSubCategory from "./Pages/Category/addSubCategory";
-import EditCategory from "./Pages/Category/editCategory";
 import ViewCategory from "./Pages/Category/viewCategory";
-import EditSubCategory from "./Pages/Category/editSubCategory";
-import AddThirdCategory from "./Pages/Category/addThirdCategory";
-import ThirdCatList from "./Pages/Category/thirdCatList";
+import CategoryForm from "./Pages/Category/CategoryForm";
+import VariantOptions from "./Pages/VariantOptions";
 import Users from "./Pages/Users";
 import Orders from "./Pages/Orders";
+import Settings from "./Pages/Settings";
+import Reviews from "./Pages/Reviews";
+import StorePages from "./Pages/StorePages";
+import Coupons from "./Pages/Coupons";
+import Insights from "./Pages/Insights";
+import ActivityFeed from "./Pages/Activity";
+import OrderDetails from "./Pages/Orders/OrderDetails";
 import ForgotPassword from "./Pages/ForgotPassword";
 import VerifyAccount from "./Pages/VerifyAccount";
 import ChangePassword from "./Pages/ChangePassword";
@@ -312,7 +312,7 @@ function App() {
                 className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
                   } transition-all`}
               >
-                <SubCatList />
+                <CategoryList level={2} />
               </div>
             </div>
           </section>
@@ -336,7 +336,7 @@ function App() {
                 className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
                   } transition-all`}
               >
-                <ThirdCatList />
+                <CategoryList level={3} />
               </div>
             </div>
           </section>
@@ -368,6 +368,30 @@ function App() {
       ),
     },
     {
+      path: "/variant-options",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <VariantOptions />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
       path: "/orders",
       element: protect(
         <>
@@ -385,6 +409,150 @@ function App() {
                   } transition-all`}
               >
                 <Orders />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/settings",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <Settings />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/reviews",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <Reviews />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/pages",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <StorePages />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/coupons",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <Coupons />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/insights",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <Insights />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
+      path: "/activity",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <ActivityFeed />
               </div>
             </div>
           </section>
@@ -473,12 +641,6 @@ function App() {
 
           {isOpenFullScreenPanel?.model === "Add Product" && <AddProduct />}
 
-          {isOpenFullScreenPanel?.model === "Add Product RAM" && <AddProductRam />}
-
-          {isOpenFullScreenPanel?.model === "Add Product Weight" && <AddProductWeight />}
-
-          {isOpenFullScreenPanel?.model === "Add Product Size" && <AddProductSize />}
-
           {isOpenFullScreenPanel?.model === "Edit Product" && <EditProduct data={isOpenFullScreenPanel?.data} />}
 
           {isOpenFullScreenPanel?.model === "View Product" && <ViewProduct data={isOpenFullScreenPanel?.data} />}
@@ -493,19 +655,22 @@ function App() {
 
           {isOpenFullScreenPanel?.model === "Edit Blog" && <BlogForm data={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "Add New Category" && <AddCategory />}
+          {isOpenFullScreenPanel?.model === "Add New Category" && <CategoryForm level={1} />}
 
-          {isOpenFullScreenPanel?.model === "Add New Sub Category" && <AddSubCategory />}
+          {isOpenFullScreenPanel?.model === "Add New Sub Category" && <CategoryForm level={2} preset={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "Add Third Level Category" && <AddThirdCategory />}
+          {isOpenFullScreenPanel?.model === "Add Third Level Category" && <CategoryForm level={3} preset={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "Edit Category" && <EditCategory data={isOpenFullScreenPanel?.data} />}
+          {isOpenFullScreenPanel?.model === "Edit Category" && <CategoryForm key={isOpenFullScreenPanel?.data?._id} edit={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "Edit Sub Category" && <EditSubCategory data={isOpenFullScreenPanel?.data} />}
+          {isOpenFullScreenPanel?.model === "Edit Sub Category" && <CategoryForm key={isOpenFullScreenPanel?.data?._id} edit={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "Edit Third Category" && <EditSubCategory data={isOpenFullScreenPanel?.data} />}
+          {isOpenFullScreenPanel?.model === "Edit Third Category" && <CategoryForm key={isOpenFullScreenPanel?.data?._id} edit={isOpenFullScreenPanel?.data} />}
 
-          {isOpenFullScreenPanel?.model === "View Category" && <ViewCategory data={isOpenFullScreenPanel?.data} />}
+          {isOpenFullScreenPanel?.model === "Product Details Template" && <CategoryTemplate key={isOpenFullScreenPanel?.data?._id} data={isOpenFullScreenPanel?.data} />}
+
+          {isOpenFullScreenPanel?.model === "View Order" && <OrderDetails key={isOpenFullScreenPanel?.data?._id} data={isOpenFullScreenPanel?.data} />}
+          {isOpenFullScreenPanel?.model === "View Category" && <ViewCategory key={isOpenFullScreenPanel?.data?._id} data={isOpenFullScreenPanel?.data} />}
         </Dialog>
       </MyContext.Provider>
 

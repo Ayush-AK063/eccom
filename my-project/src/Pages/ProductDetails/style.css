@@ -74,7 +74,33 @@
     margin: 0;
 }
 
+.pdSpecGroup + .pdSpecGroup {
+    margin-top: 24px;
+}
+
+.pdSpecGroup h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.pdSpecs--single {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 820px;
+}
+
+.pdSpecs--single .pdSpecs__row {
+    grid-template-columns: 200px minmax(0, 1fr);
+}
+
 @media (max-width: 767px) {
+    .pdSpecs--single .pdSpecs__row {
+        grid-template-columns: 120px minmax(0, 1fr);
+    }
+
     .pdSpecs {
         grid-template-columns: 1fr;
     }

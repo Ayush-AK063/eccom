@@ -8,10 +8,13 @@ import AuthLayout, { AuthDivider, AuthField, AuthSwitch, GoogleButton } from "..
 import { MyContext } from "../../App";
 import { useContext } from "react";
 import { postData } from "../../utils/api";
+import { saveSession } from "../../utils/session";
 import { auth, googleProvider } from "../../firebase";
 import { signInWithPopup } from "firebase/auth";
 
 const Login = () => {
+  // Remember me: ON → 30 din login; OFF → browser band hote hi logout
+  const [remember, setRemember] = useState(() => localStorage.getItem("rememberMe") !== "false");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isShowPassword, setIsShowPassword] = useState(false);
@@ -49,7 +52,7 @@ const Login = () => {
       return false;
     }
 
-    postData("/api/user/login", formFields, { withCredentials: true }).then(
+    postData("/api/user/login", { ...formFields, remember }, { withCredentials: true }).then(
       (res) => {
         if (res?.error !== true) {
           setIsLoading(false);
@@ -59,8 +62,8 @@ const Login = () => {
             password: "",
           });
 
-          localStorage.setItem("accesstoken", res?.data?.accessToken);
-          localStorage.setItem("refreshtoken", res?.data?.refreshToken);
+          saveSession(res?.data?.accessToken, res?.data?.refreshToken, remember);
+          localStorage.setItem("rememberMe", remember ? "true" : "false");
 
           context.setUserData(res?.data?.user);
           context.setIsLogin(true);
@@ -88,11 +91,11 @@ const Login = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
 
-      const res = await postData("/api/user/google-login", { idToken });
+      const res = await postData("/api/user/google-login", { idToken, remember });
 
       if (res?.error !== true) {
-        localStorage.setItem("accesstoken", res?.data?.accessToken);
-        localStorage.setItem("refreshtoken", res?.data?.refreshToken);
+        saveSession(res?.data?.accessToken, res?.data?.refreshToken, remember);
+        localStorage.setItem("rememberMe", remember ? "true" : "false");
         context.setUserData(res?.data?.user);
         context.setIsLogin(true);
         context.openAlertBox("success", "Logged in with Google!");
@@ -116,6 +119,11 @@ const Login = () => {
       panelTitle="Good to see you again."
       panelText="Sign in to pick up where you left off — your cart, wishlist and orders are waiting."
     >
+      {new URLSearchParams(window.location.search).get("suspended") && (
+        <div className="mb-4 px-3 py-2 rounded-md bg-[#fef2f2] text-[13px] text-[#b91c1c]">
+          Your account has been suspended. Please contact support.
+        </div>
+      )}
       <GoogleButton onClick={handleGoogleLogin} loading={isGoogleLoading} />
       <AuthDivider />
 
@@ -142,6 +150,11 @@ const Login = () => {
             </button>
           </div>
         </AuthField>
+
+        <label className="flex items-center gap-2 text-[13px] text-gray-600 cursor-pointer select-none -mt-1">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} disabled={isLoading} className="w-4 h-4 accent-[#111827]" />
+          Remember me <span className="text-gray-400">· stay signed in for 30 days</span>
+        </label>
 
         <button type="submit" disabled={isLoading} className="authSubmit mt-2">
           {isLoading ? <CircularProgress size={20} color="inherit" /> : "Log in"}

@@ -14,6 +14,10 @@ const OrderItemSchema = new mongoose.Schema(
     size: { type: String, default: "" },
     productRam: { type: String, default: "" },
     productWeight: { type: String, default: "" },
+    color: { type: String, default: "" },
+    options: { type: mongoose.Schema.Types.Mixed, default: {} },
+    variantId: { type: mongoose.Schema.ObjectId, default: null },
+    sku: { type: String, default: "" },
   },
   { _id: false }
 );
@@ -43,7 +47,36 @@ const OrderSchema = new mongoose.Schema(
       country: String,
       addressType: String,
     },
+    subTotal: { type: Number, default: 0 },
+    shippingCharge: { type: Number, default: 0 },
+    codCharge: { type: Number, default: 0 },
     totalAmt: { type: Number, default: 0 },
+    // Status kab kab badla (admin timeline)
+    couponCode: { type: String, default: "" },
+    couponDiscount: { type: Number, default: 0 },
+    // Courier tracking (admin)
+    tracking: {
+      courier: { type: String, default: "" },
+      number: { type: String, default: "" },
+      url: { type: String, default: "" },
+    },
+    adminNote: { type: String, default: "" }, // sirf admin ko dikhta
+    cancelledBy: { type: String, default: "" }, // "customer" | "admin"
+    cancelReason: { type: String, default: "" },
+    // Return / replacement request (delivered ke baad)
+    returnRequest: {
+      status: { type: String, enum: ["", "requested", "approved", "rejected", "completed"], default: "" },
+      type: { type: String, default: "return" }, // return | replace
+      reason: { type: String, default: "" },
+      comment: { type: String, default: "" },
+      adminNote: { type: String, default: "" },
+      requestedAt: { type: Date, default: null },
+      resolvedAt: { type: Date, default: null },
+    },
+    statusHistory: {
+      type: [{ status: String, at: { type: Date, default: Date.now }, _id: false }],
+      default: [],
+    },
   },
   { timestamps: true }
 );

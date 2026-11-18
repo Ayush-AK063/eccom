@@ -52,7 +52,13 @@ const BlogDetails = () => {
                 <h1 className='text-[26px] font-[600] mb-2'>{blog.title}</h1>
                 <p className='flex items-center gap-1 text-[13px] text-[rgba(0,0,0,0.6)] mb-5'>
                     <IoMdTime className='text-[16px]' /> {date}
+                    {blog.author && <span>· By {blog.author}</span>}
                 </p>
+                {blog.tags?.length > 0 && (
+                    <div className='flex flex-wrap gap-2 -mt-3 mb-5'>
+                        {blog.tags.map((t) => <span key={t} className='text-[12px] px-2 py-0.5 rounded-md bg-gray-100 text-gray-700'>{t}</span>)}
+                    </div>
+                )}
 
                 {blog.images?.[0] && (
                     <div className='w-full mb-5 overflow-hidden rounded-md'>

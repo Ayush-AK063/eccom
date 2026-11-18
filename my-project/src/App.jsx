@@ -1,3 +1,4 @@
+import { variantView } from "./utils/formatPrice";
 import React, { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -35,13 +36,41 @@ import Orders from "./Pages/Orders";
 import OrderSuccess from "./Pages/Order/success";
 import OrderFailed from "./Pages/Order/failed";
 import BlogDetails from "./Pages/BlogDetails";
+import BlogList from "./Pages/BlogList";
+import InfoPage from "./Pages/InfoPage";
+import CollectionPage from "./Pages/Collection";
 import { getData, postData, putData, deleteData } from "./utils/api";
+import { mergeSettings } from "./utils/storeSettings";
 
 const MyContext = createContext();
 
 function App() {
   const [openProductDetailsModal, setOpenProductDetailsModal] = useState(false);
   const [productData, setProductData] = useState(null);
+  const [settings, setSettings] = useState(mergeSettings());
+  // Lagaya hua coupon { code, discount, description } — cart + checkout share karte hain
+  const [coupon, setCoupon] = useState(null);
+  const applyCoupon = async (code, subTotal) => {
+    const res = await postData("/api/coupon/apply", { code, subTotal });
+    if (res?.error === false) { setCoupon(res.data); return { ok: true, message: res.message }; }
+    return { ok: false, message: res?.message || "Could not apply coupon" };
+  };
+
+  // Store settings (Admin → Settings): naam, logo, contact, shipping, COD...
+  useEffect(() => {
+    getData("/api/settings").then((res) => { if (res?.error === false) setSettings(mergeSettings(res.data)); });
+  }, []);
+  // Tab title + favicon
+  useEffect(() => {
+    const g = settings.general;
+    const title = g.tabTitle || [g.storeName, g.tagline].filter(Boolean).join(" – ");
+    if (title) document.title = title;
+    if (g.favicon) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+      link.href = g.favicon;
+    }
+  }, [settings.general]);
   const [maxWidth, setMaxWidth] = useState("lg");
   const [fullWidth, setFullWidth] = useState(true);
   const [isLogin, setIsLogin] = useState(false);
@@ -117,7 +146,13 @@ function App() {
   const getCartItems = () => {
     return getData("/api/cart").then((res) => {
       if (res?.error === false) {
-        setCartData((res?.cartItem || []).filter((item) => item?.productId));
+        // Variant wale item: price / MRP / stock / photo us variant ke (baaki code productId se padhta hai)
+        setCartData((res?.cartItem || []).filter((item) => item?.productId).map((item) => {
+          const v = variantView(item.productId, item);
+          if (!v.variant) return item;
+          const images = v.image ? [v.image, ...(item.productId.images || []).filter((x) => x !== v.image)] : item.productId.images;
+          return { ...item, productId: { ...item.productId, price: v.price, oldprice: v.oldprice, countInStock: v.stock, images } };
+        }));
       }
       return res;
     });
@@ -215,9 +250,7 @@ function App() {
     }
     const res = await postData("/api/cart/add", {
       productId: product?._id,
-      size: variant.size || "",
-      productRam: variant.productRam || "",
-      productWeight: variant.productWeight || "",
+      options: variant,
     });
     if (res?.error === false) {
       // Backend 1 qty se add karta hai; zyada chahiye to turant update
@@ -243,9 +276,9 @@ function App() {
     return res;
   };
 
-  // Cart page se size / RAM / weight badlo (same option pehle se ho to backend merge karta hai)
+  // Cart page se koi option (Size / Colour / Storage…) badlo (same option pehle se ho to backend merge karta hai)
   const updateCartVariant = async (cartItemId, field, value) => {
-    const res = await putData("/api/cart/update-qty", { _id: cartItemId, [field]: value });
+    const res = await putData("/api/cart/update-qty", { _id: cartItemId, options: { [field]: value } });
     if (res?.error === false) {
       openAlertBox("success", res?.message || "Cart updated");
       await getCartItems();
@@ -270,6 +303,10 @@ function App() {
   };
 
   const values = {
+    settings,
+    coupon,
+    setCoupon,
+    applyCoupon,
     setOpenProductDetailsModal,
     setOpenCartPanel,
     toggleCartPanel,
@@ -312,35 +349,38 @@ function App() {
         <CompareProvider>
           <Header />
           <Routes>
-            <Route path="/" excat={true} element={<Home />} />
+            <Route path="/" element={<Home />} />
             <Route
               path="/productListing"
-              excat={true}
+             
               element={<ProductListing />}
             />
             <Route
               path="/product/:id"
-              excat={true}
+             
               element={<ProductDetails />}
             />
-            <Route path="/login" excat={true} element={<Login />} />
-            <Route path="/register" excat={true} element={<Register />} />
-            <Route path="/cart" excat={true} element={<CartPage />} />
-            <Route path="/verify" excat={true} element={<Verify />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/verify" element={<Verify />} />
             <Route
               path="/forgot-password"
-              excat={true}
+             
               element={<ForgotPassword />}
             />
-            <Route path="/checkout" excat={true} element={<Checkout />} />
-            <Route path="/my-account" excat={true} element={<MyAccount />} />
-            <Route path="/my-address" excat={true} element={<MyAddress />} />
-            <Route path="/my-list" excat={true} element={<MyList />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/my-account" element={<MyAccount />} />
+            <Route path="/my-address" element={<MyAddress />} />
+            <Route path="/my-list" element={<MyList />} />
             <Route path="/compare" element={<Compare />} />
-            <Route path="/my-orders" excat={true} element={<Orders />} />
+            <Route path="/my-orders" element={<Orders />} />
             <Route path="/order/success" element={<OrderSuccess />} />
             <Route path="/order/failed" element={<OrderFailed />} />
+            <Route path="/blog" element={<BlogList />} />
             <Route path="/blog/:id" element={<BlogDetails />} />
+            <Route path="/page/:slug" element={<InfoPage />} />
+            <Route path="/collection/:slug" element={<CollectionPage />} />
             <Route path="/search" element={<ProductListing />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

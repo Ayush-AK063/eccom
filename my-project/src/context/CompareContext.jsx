@@ -25,6 +25,11 @@ const snapshot = (p) => ({
     size: p?.size,
     productRam: p?.productRam,
     productWeight: p?.productWeight,
+    color: p?.color,
+    variantOptions: p?.variantOptions,
+    specifications: p?.specifications,
+    compliance: p?.compliance ? { countryOfOrigin: p.compliance.countryOfOrigin } : undefined,
+    policy: p?.policy,
     description: p?.description,
 });
 

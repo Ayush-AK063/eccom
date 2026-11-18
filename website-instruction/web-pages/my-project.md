@@ -67,11 +67,11 @@ File: `Pages/Home/index.jsx`. Sections from top to bottom:
 | 6 | **Free Shipping** | inline | static | Full-width soft-pink strip: truck icon, "FREE SHIPPING", "Free Delivery Now On Your First Order and above 499", "Only ₹499". |
 | 7 | **Shop by Collection** | `ShopByCollection` | Config list in the component + `public/collections/*.webp` | Bento grid: 1 large tile + 4 small (desktop). Each tile → its category listing. Tiles whose category doesn't exist are hidden. |
 | 8 | **Latest Products** | `ProductSlider` | `/api/product?flag=latest` | Slider of product cards. |
-| 9 | **Wide promo banner** | `AdsBannerSlider2` | Home slides of type *v3 Banner* | Fixed 4:1 strip (5:2 on mobile). |
+| 9 | **Wide promo banner** | `AdsBannerSlider2` | Home slides of type *v2 Banner* | Fixed 4:1 strip (5:2 on mobile). |
 | 10 | **Featured Products** | `ProductSlider` | `/api/product/getfeaturedproduct` | Slider of product cards. |
 | 11 | **From the Blog** | `BLogItem` slider | `/api/blog` | 1 / 2 / 3 / 4 cards per view. Hidden when there are no posts. |
 
-> *v2 Banner* home slides are no longer shown on the home page (removed on request). They remain in the database / admin.
+> The old 4:3 *v2 Banner* type was removed, and the wide banner (old *v3*) is now called *v2 Banner*.
 
 ### Product card (used everywhere) — `components/ProductItem`
 - Image box 5:4 on light grey; second image fades in on hover.
@@ -118,19 +118,24 @@ Files: `Pages/ProductDetails/index.jsx`, `reviews.jsx`, `components/ProductZoom`
 
 **Top (2 columns; stacked below 1024px)**
 - **Gallery (left, sticky while scrolling):** vertical thumbnails (hover/click to switch; horizontal row on mobile), large square image on grey with hover zoom, ‹ › arrows, `2 / 3` counter, discount pill.
-- **Info (right):** brand • category, product name (H1), rating + number + "N reviews" (scrolls to reviews), price block (big price, struck MRP, `X% off` pill, "You save ₹X", "Inclusive of all taxes"), stock line ("In stock · Only N left" when ≤10), 3-line short description, variant option buttons (size / RAM / weight — required before adding), quantity stepper `− 1 +` (max = stock), large **Add to Cart**, square wishlist button, *Add to Compare*, and a delivery box: *Free Shipping (2-3 days)* · *Cash on Delivery*.
+- **Info (right):** brand • category, product name (H1), rating + "N reviews", price block (**"From"** when variants have different prices; once all options are picked → that variant's price / MRP / % off), stock line (variant stock; "Only N left" ≤10; "Max N per order"), short description (or 3-line description), **Key highlights** (green ticks), variant options — any option the product has (Size, Colour, Storage, Flavour…), shown as buttons, **colour circles** or a dropdown as set in admin; options with no stock for the current selection are struck out / disabled, quantity `− 1 +` (max = variant stock and max-per-order), **Add to Cart**, wishlist, *Add to Compare*.
+- **Perks box (from product data):** Free / Fast delivery + "Ships in N days", return text (e.g. "10-day replacement" / "Not returnable"), Cash on Delivery (only if COD allowed), warranty (if any).
+- Picking a variant that has its own photo switches the gallery to that photo.
 
 
 **Sections, stacked one below another**
-1. **Description:** full text, paragraphs split on blank lines.
-2. **Product Details:** 2-column spec list: Brand, Category, Sub Category, Type, RAM, Size, Weight, Price, MRP, Availability, Product Code (empty rows hidden).
-3. **Ratings & Reviews:** left: average score, stars, "Based on N reviews", 5→1 star bars, and the write / update review form (login required). Right: review list (avatar, name, date, stars, text); first 5 shown + *Show all N reviews*.
+1. **Description:** full text (paragraphs) + *Watch product video* link if set.
+2. **Specifications:** **General** (brand, model no., category path, size/colour/RAM/weight, net quantity, in the box, availability, SKU + template fields in group "General"), then one block per specification group (from the category template, e.g. *Dimensions*, *Material*, *Nutrition (per serving)*), then **Shipping, returns & warranty** (ships in, COD, returns, warranty, package weight/size). Empty rows hidden.
+3. **Manufacturer & legal info:** country of origin, manufactured / packed / imported by, month of manufacture, best before, licence no. (FSSAI/BIS/HUID), customer care.
+4. **Ratings & Reviews:** left: average score, stars, "Based on N reviews", 5→1 star bars, and the write / update review form (login required). Right: review list (avatar, name, date, stars, text); first 5 shown + *Show all N reviews*.
 
 **Similar Products:** top-rated products priced 0.5×–1.5× of this one (any category), excluding items shown below. Hidden when empty.
 
 **More from <Category>:** product slider from the same category + *View all* → category listing.
 
-The same `ProductZoom` + `ProductDetails` components power the **Quick View modal** (compact mode, no long description).
+The same `ProductZoom` + `ProductDetails` components power the **Quick View modal** (compact mode, first 4 highlights).
+
+**Variants everywhere:** product cards show "From ₹X" for price ranges; the size popup on cards strikes out sold-out options and shows a different price next to an option; the cart / drawer / checkout use the chosen variant's price, MRP, stock and photo; Compare also lists **Colour**, all specification rows, country of origin, warranty and returns. Draft / archived products don't appear anywhere on the store (product URL → not found).
 
 ---
 

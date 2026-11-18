@@ -3,23 +3,24 @@ import { Link } from 'react-router-dom';
 import { FiArrowRight, FiClock } from 'react-icons/fi';
 import { postData } from '../../utils/api';
 import ProductItem from '../ProductItem';
+import { istToday, msToIstMidnight } from '../../utils/storeSettings';
 
-// Aaj raat 12 baje tak ka countdown (roz reset)
-const msToMidnight = () => {
-    const now = new Date();
-    const end = new Date(now);
-    end.setHours(24, 0, 0, 0);
-    return end - now;
+// Timer: "daily" = aaj raat 12 baje tak, "date" = admin ki di hui tareekh tak, "off" = nahi
+const msLeft = (timer, endsAt) => {
+    if (timer === 'date') return endsAt ? new Date(endsAt) - new Date() : 0;
+    return msToIstMidnight();
 };
 
-const useCountdown = () => {
-    const [left, setLeft] = useState(msToMidnight);
+const useCountdown = (timer, endsAt) => {
+    const [left, setLeft] = useState(() => msLeft(timer, endsAt));
     useEffect(() => {
-        const t = setInterval(() => setLeft(msToMidnight()), 1000);
+        setLeft(msLeft(timer, endsAt));
+        const t = setInterval(() => setLeft(msLeft(timer, endsAt)), 1000);
         return () => clearInterval(t);
-    }, []);
-    const s = Math.floor(left / 1000);
-    return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, '0'));
+    }, [timer, endsAt]);
+    const s = Math.max(0, Math.floor(left / 1000));
+    const d = Math.floor(s / 86400);
+    return { ended: left <= 0, d, parts: [Math.floor((s % 86400) / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, '0')) };
 };
 
 const TimeBox = ({ value, label }) => (
@@ -31,17 +32,37 @@ const TimeBox = ({ value, label }) => (
     </span>
 );
 
-// Sabse zyada discount wale products — admin ko alag se kuch set nahi karna
-const DealsOfTheDay = () => {
+// Admin → Store Settings → Home page → Today's Best Deals
+const DealsOfTheDay = ({ config = {}, title, subtitle }) => {
     const [products, setProducts] = useState([]);
-    const [h, m, s] = useCountdown();
+    const { minDiscount = 0, limit = 12, viewAllUrl = '/productListing', schedule = [], emptyDay = 'discount' } = config;
+    // Calendar: aaj (India date) ke products; aaj kuch set nahi to emptyDay
+    const today = istToday();
+    const todays = config.source === 'schedule' ? schedule.find((x) => x.date === today) : null;
+    const source = config.source === 'schedule' ? (todays ? 'manual' : emptyDay === 'hide' ? 'none' : 'discount') : config.source || 'discount';
+    const productIds = todays ? todays.productIds : config.productIds || [];
+    const timer = config.source === 'schedule' ? 'daily' : config.timer || 'daily';
+    const endsAt = config.endsAt;
+    const { ended, d, parts: [h, m, s] } = useCountdown(timer, endsAt);
+    const ids = productIds.join(',');
+    // Countdown har second render karta hai → raat 12 baje `today` badlega aur products dobara aayenge
 
     useEffect(() => {
-        postData('/api/product/filters', { sortBy: 'discount', order: 'desc', limit: 12, availability: [] })
-            .then((res) => setProducts((res?.products || []).filter((p) => p.discount > 0)));
-    }, []);
+        const body = { limit, availability: ['inStock'] };
+        if (source === 'none') return setProducts([]);
+        if (source === 'manual') { if (!productIds.length) return setProducts([]); body.ids = productIds; }
+        else if (source === 'flag') body.flag = 'deal';
+        else Object.assign(body, { sortBy: 'discount', order: 'desc', minDiscount: Math.max(1, minDiscount) });
+        postData('/api/product/filters', body).then((res) => {
+            let list = (res?.products || []).filter((p) => source !== 'discount' || p.discount > 0);
+            if (source === 'manual') list = productIds.map((id) => list.find((p) => p._id === id)).filter(Boolean);
+            setProducts(list);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [source, minDiscount, ids, limit, today]);
 
-    if (!products.length) return null;
+    // Tareekh wala sale khatam → section chhupao
+    if (!products.length || (timer === 'date' && ended)) return null;
 
     return (
         <section className='pt-6 pb-4 bg-white'>
@@ -50,29 +71,31 @@ const DealsOfTheDay = () => {
                     <div className='flex items-center gap-3 min-w-0'>
                         <span className='dealsHead__icon'><FiClock /></span>
                         <div className='min-w-0'>
-                            <h2 className='text-[20px] font-[700] text-white leading-tight'>Today's Best Deals</h2>
-                            <div className='text-[13px] text-white/80 leading-[18px] mt-0.5'>Biggest discounts of the day — grab them before they're gone</div>
+                            {title && <h2 className='text-[20px] font-[700] text-white leading-tight'>{title}</h2>}
+                            {subtitle && <div className='text-[13px] text-white/80 leading-[18px] mt-0.5'>{subtitle}</div>}
                         </div>
                     </div>
                     <div className='flex items-center gap-5'>
-                        <div className='flex items-start gap-1.5' aria-label={`Ends in ${h} hours ${m} minutes ${s} seconds`}>
-                            <span className='hidden sm:block self-center mr-1 text-[12px] font-[600] text-white/80'>Ends in</span>
-                            <TimeBox value={h} label='hrs' />
-                            <span className='text-white font-[700] mt-1.5'>:</span>
-                            <TimeBox value={m} label='min' />
-                            <span className='text-white font-[700] mt-1.5'>:</span>
-                            <TimeBox value={s} label='sec' />
-                        </div>
-                        <Link to='/productListing' className='hidden md:inline-flex items-center gap-1.5 text-[13px] font-[600] text-white hover:underline whitespace-nowrap'>
-                            View all <FiArrowRight />
-                        </Link>
+                        {timer !== 'off' && (
+                            <div className='flex items-start gap-1.5' aria-label={`Ends in ${d ? `${d} days ` : ''}${h} hours ${m} minutes ${s} seconds`}>
+                                <span className='hidden sm:block self-center mr-1 text-[12px] font-[600] text-white/80'>Ends in</span>
+                                {d > 0 && <><TimeBox value={d} label='days' /><span className='text-white font-[700] mt-1.5'>:</span></>}
+                                <TimeBox value={h} label='hrs' />
+                                <span className='text-white font-[700] mt-1.5'>:</span>
+                                <TimeBox value={m} label='min' />
+                                <span className='text-white font-[700] mt-1.5'>:</span>
+                                <TimeBox value={s} label='sec' />
+                            </div>
+                        )}
+                        {viewAllUrl && (
+                            <Link to={viewAllUrl} className='hidden md:inline-flex items-center gap-1.5 text-[13px] font-[600] text-white hover:underline whitespace-nowrap'>
+                                View all <FiArrowRight />
+                            </Link>
+                        )}
                     </div>
                 </div>
-                {/* 2 row ka grid — har screen pe columns ke hisaab se extra cards CSS se chhupte hain */}
                 <div className='dealsGrid'>
-                    {products.map((item) => (
-                        <ProductItem key={item._id} item={item} />
-                    ))}
+                    {products.map((item) => <ProductItem key={item._id} item={item} />)}
                 </div>
             </div>
         </section>

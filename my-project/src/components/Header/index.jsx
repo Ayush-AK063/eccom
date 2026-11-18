@@ -66,43 +66,36 @@ const Header = () => {
 
   return (
     <header className="bg-white">
+      {context.settings?.header?.topStripEnabled !== false && (context.settings?.header?.topStripText || context.settings?.header?.topLinks?.length > 0) && (
       <div className="top-strip py-[5px] border-t-[1px] border-b-[1px] border-gray-250">
         <div className="container">
           <div className="flex items-center justify-between">
             <div className="col1 w-[50%]">
               <p className="text-[12px] font-[500] leading-[20px]">
-                Get up to 50% off new season styles, limited time only
+                {context.settings.header.topStripText}
               </p>
             </div>
             <div className="flex items-center justify-end col2">
               <ul className="flex items-center gap-3">
-                <li className="list-none">
-                  <Link
-                    to="#"
-                    className="text-[12px] leading-[20px] link font-[500] transition"
-                  >
-                    Help Center
-                  </Link>
-                </li>
-                <li className="list-none">
-                  <Link
-                    to="#"
-                    className="text-[12px] leading-[20px] link font-[500] transition"
-                  >
-                    Order Tracking
-                  </Link>
-                </li>
+                {(context.settings.header.topLinks || []).map((l) => (
+                  <li className="list-none" key={l.label}>
+                    {/^https?:/.test(l.url)
+                      ? <a href={l.url} target="_blank" rel="noreferrer" className="text-[12px] leading-[20px] link font-[500] transition">{l.label}</a>
+                      : <Link to={l.url} className="text-[12px] leading-[20px] link font-[500] transition">{l.label}</Link>}
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
         </div>
       </div>
+      )}
 
       <div className="header py-3 border-b-[1px] border-gray-250">
         <div className="container flex items-center justify-between">
           <div className="col1 w-[25%]">
             <Link to={"/"}>
-              <img src={logo} alt="brand logo" />
+              <img src={context.settings?.general?.logo || logo} alt={context.settings?.general?.storeName || "Store logo"} className="max-h-[56px] w-auto" />
             </Link>
           </div>
           <div className="col2 w-[40%]">
@@ -192,7 +185,7 @@ const Header = () => {
                         <span className="text-[14px]">My Account</span>
                       </MenuItem>
                     </Link>
-                    <Link to="my-orders" className="block w-full">
+                    <Link to="/my-orders" className="block w-full">
                       <MenuItem
                         onClick={handleClose}
                         className="flex items-center gap-2 !py-2"

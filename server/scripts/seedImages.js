@@ -100,8 +100,7 @@ const BANNER_FILES = {
     'Left Big Banner': ['left-big-1.jpg', 'left-big-2.jpg'],
     'Right Top Banner': ['right-top.jpg'],
     'Right Down Banner': ['right-down.jpg'],
-    'v2 Banner': ['v2-1.jpg', 'v2-2.jpg', 'v2-3.jpg'],
-    'v3 Banner': ['v3-1.jpg'],
+    'v2 Banner': ['v3-1.jpg'], // wide 4:1 banner
 };
 
 async function uploadLocalFiles(module, paths) {

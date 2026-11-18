@@ -11,7 +11,7 @@ import CompareButton from '../CompareButton';
 import { MyContext } from '../../App';
 import AddToCart from '../AddToCart';
 import VariantPicker from '../VariantPicker';
-import { formatPrice, getVariantOptions, VARIANT_FIELDS } from '../../utils/formatPrice';
+import { formatPrice, optionFields } from '../../utils/formatPrice';
 
 const ProductItemListView = ({ item }) => {
     const context = useContext(MyContext);
@@ -21,8 +21,7 @@ const ProductItemListView = ({ item }) => {
     const inStock = item?.countInStock > 0;
     const save = item?.oldprice > item?.price ? item.oldprice - item.price : 0;
     const text = (item?.description || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-    const options = getVariantOptions(item);
-    const variants = VARIANT_FIELDS.filter(({ key }) => options[key].length);
+    const variants = optionFields(item);
 
     return (
         <article className='productItem listItem group/card'>
@@ -69,11 +68,13 @@ const ProductItemListView = ({ item }) => {
 
                 {variants.length > 0 && (
                     <div className='mt-3 flex flex-col gap-1.5'>
-                        {variants.map(({ key, label }) => (
+                        {variants.map(({ key, label, values, display, hex }) => (
                             <div key={key} className='flex items-center flex-wrap gap-1.5'>
                                 <span className='text-[12px] font-[500] text-gray-500 mr-1'>{label}:</span>
-                                {options[key].slice(0, 6).map((v) => <span key={v} className='listItem__chip'>{v}</span>)}
-                                {options[key].length > 6 && <span className='text-[12px] text-gray-400'>+{options[key].length - 6}</span>}
+                                {values.slice(0, 6).map((v) => display === 'swatch'
+                                    ? <span key={v} title={v} className='inline-block w-4 h-4 rounded-full border border-black/15' style={{ background: hex?.[v] || '#e5e7eb' }} />
+                                    : <span key={v} className='listItem__chip'>{v}</span>)}
+                                {values.length > 6 && <span className='text-[12px] text-gray-400'>+{values.length - 6}</span>}
                             </div>
                         ))}
                     </div>
@@ -84,7 +85,7 @@ const ProductItemListView = ({ item }) => {
             <div className='listItem__buy'>
                 <div>
                     <div className='flex items-baseline gap-2 flex-wrap'>
-                        <span className='text-[22px] font-[700] text-gray-900 leading-none'>{formatPrice(item?.price)}</span>
+                        <span className='text-[22px] font-[700] text-gray-900 leading-none'>{(item?.variants || []).length > 1 && new Set(item.variants.map((v) => v.price)).size > 1 && <span className='text-[12px] font-[500] text-gray-500 mr-1'>From</span>}{formatPrice(item?.price)}</span>
                         {save > 0 && <span className='text-[13px] text-gray-400 line-through'>{formatPrice(item?.oldprice)}</span>}
                     </div>
                     {save > 0 && (
