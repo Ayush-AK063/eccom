@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema(
         rating: { type: Number, default: 0 },
         productFlags: [{ type: String }],
         discount: { type: Number, required: true },
-        productRam: { type: String, default: null },
+        productRam: [{ type: String }],
         size: [{ type: String, default: null }],
         productWeight: [{ type: String, default: null }],
         dateCreated: { type: Date, default: Date.now },

@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
+import CircularProgress from "@mui/material/CircularProgress";
 import "./App.css";
 import Dashboard from "./Pages/Dashboard";
 import Header from "./Components/Header";
 import Sidebar from "./Components/Sidebar";
 import { createContext } from "react";
 import Login from "./Pages/Login";
-import SignUp from "./Pages/Signup";
 import Products from "./Pages/Products";
 import AddProduct from "./Pages/Products/addProduct";
 import EditProduct from "./Pages/Products/editProduct";
@@ -27,6 +27,8 @@ import HomeSliderBanner from "./Pages/HomeSliderBanners";
 import AddHomeSlide from "./Pages/HomeSliderBanners/addHomeSlide";
 import EditHomeSlide from "./Pages/HomeSliderBanners/editHomeSlide";
 import ViewHomeSlide from "./Pages/HomeSliderBanners/viewHomeSlide";
+import BlogList from "./Pages/Blog";
+import BlogForm from "./Pages/Blog/blogForm";
 import CategoryList from "./Pages/Category";
 import AddCategory from "./Pages/Category/addCategory";
 import SubCatList from "./Pages/Category/subCatList";
@@ -63,6 +65,9 @@ function App() {
   });
 
   const [refetchHomeSlides, setRefetchHomeSlides] = useState(false);
+  const [refetchBlogs, setRefetchBlogs] = useState(false);
+  // Login check (user-details API) pura hone tak protected pages mat dikhao
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("accesstoken");
@@ -71,6 +76,7 @@ function App() {
     if (!token) {
       setIsLogin(false);
       setUserData(null);
+      setAuthChecked(true);
       return;
     }
 
@@ -79,9 +85,16 @@ function App() {
       .then((res) => {
         console.log("Auto-login:", res);
 
-        if (res && res.error === false) {
+        if (res && res.error === false && res.user?.role === "admin") {
           setUserData(res.user); // backend sends: { user: {...} }
           setIsLogin(true);
+        } else if (res && res.error === false) {
+          // Token valid hai par user admin nahi
+          localStorage.removeItem("accesstoken");
+          localStorage.removeItem("refreshtoken");
+          setIsLogin(false);
+          setUserData(null);
+          toast.error("Admin access only");
         } else {
           localStorage.removeItem("accesstoken");
           localStorage.removeItem("refreshtoken");
@@ -96,7 +109,8 @@ function App() {
         localStorage.removeItem("refreshtoken");
         setIsLogin(false);
         setUserData(null);
-      });
+      })
+      .finally(() => setAuthChecked(true));
   }, []);  // 🔥 run ONCE on startup
 
   const openAlertBox = (status, msg) => {
@@ -108,10 +122,34 @@ function App() {
     }
   };
 
+  // Logout: API fail ho (token expire) tab bhi local session hamesha saaf karo
+  const logout = () => {
+    getData(`/api/user/logout?token=${localStorage.getItem("accesstoken")}`, { withCredentials: true })
+      .finally(() => {
+        localStorage.removeItem("accesstoken");
+        localStorage.removeItem("refreshtoken");
+        setUserData(null);
+        setIsLogin(false);
+        toast.success("Logged out");
+      });
+  };
+
+  // Bina admin login ke andar ka koi page nahi
+  const protect = (element) => {
+    if (!authChecked) {
+      return (
+        <div className="flex items-center justify-center w-full h-screen">
+          <CircularProgress />
+        </div>
+      );
+    }
+    return isLogin ? element : <Navigate to="/login" replace />;
+  };
+
   const router = createBrowserRouter([
     {
       path: "/",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -135,11 +173,7 @@ function App() {
     },
     {
       path: "/login",
-      element: (
-        <>
-          <Login />
-        </>
-      ),
+      element: authChecked && isLogin ? <Navigate to="/" replace /> : <Login />,
     },
     {
       path: "/forgotpassword",
@@ -166,16 +200,8 @@ function App() {
       ),
     },
     {
-      path: "/signup",
-      element: (
-        <>
-          <SignUp />
-        </>
-      ),
-    },
-    {
       path: "/products",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -199,7 +225,7 @@ function App() {
     },
     {
       path: "/homeSlider/list",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -222,8 +248,32 @@ function App() {
       ),
     },
     {
+      path: "/blog/list",
+      element: protect(
+        <>
+          <section className="main">
+            <Header />
+            <div className="containerMain flex">
+              <div
+                className={`overflow-hidden sidebarWrapper ${isSidebarOpen === true ? "w-[20%]" : "w-[0%] opacity-0"
+                  } transition-all`}
+              >
+                <Sidebar />
+              </div>
+              <div
+                className={`contentRight py-4 px-5 ${isSidebarOpen === true ? "w-[80%]" : "w-[100%]"
+                  } transition-all`}
+              >
+                <BlogList />
+              </div>
+            </div>
+          </section>
+        </>
+      ),
+    },
+    {
       path: "/category/list",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -247,7 +297,7 @@ function App() {
     },
     {
       path: "/subCategory/list",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -271,7 +321,7 @@ function App() {
     },
     {
       path: "/thirdCategory/list",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -295,7 +345,7 @@ function App() {
     },
     {
       path: "/users",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -319,7 +369,7 @@ function App() {
     },
     {
       path: "/orders",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -343,7 +393,7 @@ function App() {
     },
     {
       path: "/my-account",
-      element: (
+      element: protect(
         <>
           <section className="main">
             <Header />
@@ -379,6 +429,9 @@ function App() {
     setUserData,
     refetchHomeSlides,
     setRefetchHomeSlides,
+    refetchBlogs,
+    setRefetchBlogs,
+    logout,
   };
 
   return (
@@ -435,6 +488,10 @@ function App() {
           {isOpenFullScreenPanel?.model === "Edit Home Slide" && <EditHomeSlide data={isOpenFullScreenPanel?.data} />}
 
           {isOpenFullScreenPanel?.model === "View Home Slide" && <ViewHomeSlide data={isOpenFullScreenPanel?.data} />}
+
+          {isOpenFullScreenPanel?.model === "Add Blog" && <BlogForm />}
+
+          {isOpenFullScreenPanel?.model === "Edit Blog" && <BlogForm data={isOpenFullScreenPanel?.data} />}
 
           {isOpenFullScreenPanel?.model === "Add New Category" && <AddCategory />}
 

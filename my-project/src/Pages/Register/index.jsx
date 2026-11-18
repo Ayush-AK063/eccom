@@ -9,9 +9,12 @@ import { postData } from "../../utils/api";
 import { MyContext } from "../../App";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useNavigate } from "react-router-dom";
+import { auth, googleProvider } from "../../firebase";
+import { signInWithPopup } from "firebase/auth";
 
 const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isShowPassword, setIsShowPassword] = useState(false);
   const [formFields, setFormFields] = useState({
     name: "",
@@ -21,6 +24,32 @@ const Register = () => {
 
   const context = useContext(MyContext);
   const history = useNavigate();
+
+  // Google se sign up / login — backend naya user bana deta hai agar pehle se nahi hai
+  const handleGoogleLogin = async () => {
+    try {
+      setIsGoogleLoading(true);
+      const result = await signInWithPopup(auth, googleProvider);
+      const idToken = await result.user.getIdToken();
+
+      const res = await postData("/api/user/google-login", { idToken });
+
+      if (res?.error !== true) {
+        localStorage.setItem("accesstoken", res?.data?.accessToken);
+        localStorage.setItem("refreshtoken", res?.data?.refreshToken);
+        context.setUserData(res?.data?.user);
+        context.setIsLogin(true);
+        context.openAlertBox("success", "Logged in with Google!");
+        history("/");
+      } else {
+        context.openAlertBox("error", res?.message || "Google login failed");
+      }
+    } catch (error) {
+      context.openAlertBox("error", error?.message || "Google login failed");
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   const onChangeInput = (e) => {
     const { name, value } = e.target;
@@ -163,9 +192,17 @@ const Register = () => {
               Or continue with social account
             </p>
 
-            <Button className="flex w-full gap-3 !bg-[#f1f1f1] btn-lg !text-black">
-              <FcGoogle className="text-[20px]" />
-              Login with Google
+            <Button
+              className="flex w-full gap-3 !bg-[#f1f1f1] btn-lg !text-black"
+              onClick={handleGoogleLogin}
+              disabled={isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : (
+                <FcGoogle className="text-[20px]" />
+              )}
+              Sign up with Google
             </Button>
           </form>
         </div>

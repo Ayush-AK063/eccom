@@ -1,21 +1,22 @@
 import MyList from "../models/MyList.js";
+import Product from "../models/Product.js";
 
 export const addToMyListController = async (req, res) => {
   try {
-    const userId = req.body.userId;
-    const {
-      productId,
-      productTitle,
-      image,
-      rating,
-      price,
-      oldPrice,
-      discount,
-      brand,
-    } = req.body;
+    // userId sirf login (auth) se — body se nahi
+    const userId = req.userId;
+    const { productId } = req.body;
+
+    if (!productId) {
+      return res.status(400).json({ message: "productId is required", success: false, error: true });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found", success: false, error: true });
+    }
 
     const item = await MyList.findOne({ userId, productId });
-
     if (item) {
       return res.status(400).json({
         message: "Product already in My List",
@@ -24,16 +25,17 @@ export const addToMyListController = async (req, res) => {
       });
     }
 
+    // Product data server khud DB se leta hai (client price/title nahi bhej sakta)
     const myList = new MyList({
       productId,
-      productTitle,
-      image,
-      rating,
-      price,
-      oldPrice,
-      discount,
-      brand,
       userId,
+      productTitle: product.name,
+      image: product.images?.[0] || "",
+      rating: product.rating || 0,
+      price: product.price || 0,
+      oldPrice: product.oldPrice || 0,
+      discount: product.discount || 0,
+      brand: product.brand || "",
     });
 
     const save = await myList.save();
@@ -55,7 +57,8 @@ export const deleteFromMyListController = async (req, res) => {
   try {
     const myListItem = await MyList.findById(req.params.id);
 
-    if (!myListItem) {
+    // Sirf apna item delete kar sakte hain
+    if (!myListItem || String(myListItem.userId) !== String(req.userId)) {
       return res.status(404).json({
         message: "Item not found in My List",
         success: false,

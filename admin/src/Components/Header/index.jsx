@@ -14,7 +14,6 @@ import { MyContext } from "../../App";
 import { RiMenuFoldLine } from "react-icons/ri";
 import { RiMenuUnfoldLine } from "react-icons/ri";
 import { Link } from "react-router-dom";
-import { getData } from "../../utils/api";
 
 const StyledBadge = styled(Badge)(({ theme }) => ({
   "& .MuiBadge-badge": {
@@ -39,18 +38,7 @@ const Header = () => {
 
   const logout = () => {
     setAnchorMyAcc(null);
-
-    getData(`/api/user/logout?token=${localStorage.getItem("accesstoken")}`, {
-      withCredentials: true,
-    }).then((res) => {
-      console.log(res);
-      if (res?.error === false) {
-        context.setIsLogin(false);
-        context.openAlertBox("success", res?.message);
-        localStorage.removeItem("accesstoken");
-        localStorage.removeItem("refreshtoken");
-      }
-    });
+    context.logout();
   };
 
   return (

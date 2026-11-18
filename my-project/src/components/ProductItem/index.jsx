@@ -3,21 +3,26 @@ import './style.css'
 import { Link } from 'react-router-dom'
 import Rating from '@mui/material/Rating';
 import Button from '@mui/material/Button';
-import { FaRegHeart } from "react-icons/fa";
-import { IoGitCompareOutline } from "react-icons/io5";
+import WishlistButton from '../WishlistButton';
 import { MdZoomOutMap } from "react-icons/md";
 import Tooltip from '@mui/material/Tooltip';
 import { useContext } from 'react';
 import { MyContext } from '../../App';
+import AddToCart from '../AddToCart';
+import VariantPicker from '../VariantPicker';
+import { useState } from 'react';
+import { formatPrice } from '../../utils/formatPrice';
 
 
 const ProductItem = ({ item }) => {
 
     const context = useContext(MyContext);
+    const [showVariants, setShowVariants] = useState(false);
 
     return (
         <div className='overflow-hidden shadow-lg border-[rgba(0,0,0,0.1)] rounded-md productItem border'>
             <div className='group imgWrapper w-[100%] rounded-md relative'>
+                {showVariants && <VariantPicker product={item} onClose={() => setShowVariants(false)} />}
                 <Link to={`/product/${item?._id}`}>
                     <div className='img h-[220px] overflow-hidden'>
                         <img src={item?.images?.[0] || ""}
@@ -46,18 +51,7 @@ const ProductItem = ({ item }) => {
                             <MdZoomOutMap className='text-[18px] !text-black group-hover:text-white hover:!text-white' />
                         </Button>
                     </Tooltip>
-                    <Tooltip title="Compare product" placement="left-start">
-                        <Button className='!w-[35px] !h-[35px] !min-w-[35px] !rounded-full !bg-white text-black hover:!bg-primary hover:text-white'
-                        >
-                            <IoGitCompareOutline className='text-[18px] !text-black group-hover:text-white hover:!text-white' />
-                        </Button>
-                    </Tooltip>
-                    <Tooltip title="Add to wishlist" placement="left-start">
-                        <Button className='!w-[35px] !h-[35px] !min-w-[35px] !rounded-full !bg-white text-black hover:!bg-primary hover:text-white'
-                        >
-                            <FaRegHeart className='text-[18px] !text-black group-hover:text-white hover:!text-white' />
-                        </Button>
-                    </Tooltip>
+                    <WishlistButton product={item} />
                 </div>
             </div>
 
@@ -70,8 +64,11 @@ const ProductItem = ({ item }) => {
                 </h3>
                 <Rating name="size-small" value={item?.rating || 0} size="small" readOnly precision={0.5} />
                 <div className='flex items-center gap-4'>
-                    {item?.oldprice && <span className='text-gray-500 font-[500] line-through oldPrice text-[15px]'>${item?.oldprice}</span>}
-                    <span className='font-[600] newPrice text-primary text-[15px]'>${item?.price || 0}</span>
+                    {item?.oldprice > 0 && <span className='text-gray-500 font-[500] line-through oldPrice text-[15px]'>{formatPrice(item?.oldprice)}</span>}
+                    <span className='font-[600] newPrice text-primary text-[15px]'>{formatPrice(item?.price)}</span>
+                </div>
+                <div className='mt-3'>
+                    <AddToCart product={item} onNeedVariant={() => setShowVariants((v) => !v)} className='w-full' />
                 </div>
             </div>
         </div>

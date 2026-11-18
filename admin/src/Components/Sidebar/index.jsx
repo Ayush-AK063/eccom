@@ -8,6 +8,7 @@ import { RiProductHuntLine } from "react-icons/ri";
 import { TbCategory2 } from "react-icons/tb";
 import { IoBagCheckOutline } from "react-icons/io5";
 import { TbLogout } from "react-icons/tb";
+import { SiBloglovin } from "react-icons/si";
 import { FaAngleDown } from "react-icons/fa";
 import { Collapse } from "react-collapse";
 import { MyContext } from "../../App";
@@ -267,6 +268,39 @@ const Sidebar = () => {
             </Collapse>
           </li>
           <li>
+            <Button
+              className="w-full !capitalize !py-2 hover:!bg-[#f1f1f1] items-center flex gap-3 text-[14px] !font-[600] !text-[rgba(0,0,0,0.8)] !justify-start"
+              onClick={() => isOpenSubMenu(5)}
+            >
+              <SiBloglovin className="text-[18px]" /> <span>Blogs</span>
+              <span className="ml-auto w-[30px] h-[30px] flex items-center justify-center">
+                <FaAngleDown className={`transition-all ${subMenuIndex === 5 ? "rotate-180" : ""}`} />
+              </span>
+            </Button>
+
+            <Collapse isOpened={subMenuIndex === 5 ? true : false}>
+              <ul className="w-full">
+                <li className="w-full">
+                  <Link to="/blog/list">
+                    <Button className="!text-[rgba(0,0,0,0.6)] !text-[13px] !font-[600] !capitalize !justify-start !w-full !pl-9 flex gap-3">
+                      <span className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>
+                      Blog List
+                    </Button>
+                  </Link>
+                </li>
+                <li className="w-full">
+                  <Button
+                    className="!text-[rgba(0,0,0,0.6)] !text-[13px] !font-[600] !capitalize !justify-start !w-full !pl-9 flex gap-3"
+                    onClick={() => context.setIsOpenFullScreenPanel({ open: true, model: "Add Blog" })}
+                  >
+                    <span className="block w-[5px] h-[5px] rounded-full bg-[rgba(0,0,0,0.2)]"></span>
+                    Add Blog
+                  </Button>
+                </li>
+              </ul>
+            </Collapse>
+          </li>
+          <li>
             <Link to="/orders">
               <Button className="w-full !capitalize !py-2 hover:!bg-[#f1f1f1] items-center flex gap-3 text-[14px] !font-[600] !text-[rgba(0,0,0,0.8)] !justify-start">
                 <IoBagCheckOutline className="text-[20px]" />{" "}
@@ -275,7 +309,8 @@ const Sidebar = () => {
             </Link>
           </li>
           <li>
-            <Button className="w-full !capitalize !py-2 hover:!bg-[#f1f1f1] items-center flex gap-3 text-[14px] !font-[600] !text-[rgba(0,0,0,0.8)] !justify-start">
+            <Button className="w-full !capitalize !py-2 hover:!bg-[#f1f1f1] items-center flex gap-3 text-[14px] !font-[600] !text-[rgba(0,0,0,0.8)] !justify-start"
+              onClick={() => context.logout()}>
               <TbLogout className="text-[20px]" /> <span>Logout</span>
             </Button>
           </li>

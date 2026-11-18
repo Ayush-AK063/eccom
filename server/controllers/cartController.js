@@ -1,5 +1,14 @@
 import CartProduct from "../models/CartProduct.js";
 import User from "../models/User.js";
+import Product from "../models/Product.js";
+
+const VARIANT_FIELDS = [
+  ["size", "size"],
+  ["productRam", "RAM"],
+  ["productWeight", "weight"],
+];
+
+const toArr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean);
 
 export const addToCartItemController = async (req, res) => {
   try {
@@ -14,23 +23,49 @@ export const addToCartItemController = async (req, res) => {
       });
     }
 
-    const checkItemCart = await CartProduct.findOne({ userId, productId });
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found", error: true, success: false });
+    }
+
+    // Product mein jis variant ke options hain, wo chunna zaroori hai aur valid hona chahiye
+    const variant = {};
+    for (const [field, label] of VARIANT_FIELDS) {
+      const options = toArr(product[field]);
+      const chosen = (req.body[field] || "").toString().trim();
+      if (options.length > 0) {
+        if (!chosen) {
+          return res.status(400).json({ message: `Please select ${label}`, error: true, success: false });
+        }
+        if (!options.includes(chosen)) {
+          return res.status(400).json({ message: `Invalid ${label}`, error: true, success: false });
+        }
+      }
+      variant[field] = options.length > 0 ? chosen : "";
+    }
+
+    const checkItemCart = await CartProduct.findOne({ userId, productId, ...variant });
 
     if (checkItemCart) {
-      return res.status(400).json({ message: "Product already in cart" });
+      return res.status(400).json({
+        message: "Product already in cart",
+        error: true,
+        success: false,
+      });
     }
 
     const cartItem = new CartProduct({
       quantity: 1,
       userId,
       productId,
+      ...variant,
     });
 
     const save = await cartItem.save();
 
-    const updateCartUser = await User.updateOne(
+    await User.updateOne(
       { _id: userId },
-      { $push: { shopping_cart: productId } }
+      { $addToSet: { shopping_cart: productId } }
     );
 
     return res.status(201).json({
@@ -65,27 +100,88 @@ export const getCartItemsController = async (req, res) => {
   }
 };
 
+// PUT /api/cart/update-qty
+// Body: { _id, quantity?, size?, productRam?, productWeight? }
+// Cart page se quantity aur/ya variant (size / RAM / weight) badalna.
+// Naya variant pehle se cart mein ho to dono item merge ho jaate hain.
 export const updateCartItemQtyController = async (req, res) => {
   try {
     const userId = req.userId;
-    const { _id, quantity } = req.body;
+    const { _id } = req.body;
 
-    if (!(_id && quantity)) {
+    if (!_id) {
+      return res.status(400).json({ message: "Cart item ID is required", error: true, success: false });
+    }
+
+    const cartItem = await CartProduct.findOne({ _id, userId });
+    if (!cartItem) {
+      return res.status(404).json({ message: "Cart item not found", error: true, success: false });
+    }
+
+    const product = await Product.findById(cartItem.productId);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found", error: true, success: false });
+    }
+
+    // Quantity (na bheji ho to purani)
+    let quantity = cartItem.quantity;
+    if (req.body.quantity !== undefined) {
+      quantity = Number(req.body.quantity);
+      if (!Number.isInteger(quantity) || quantity < 1) {
+        return res.status(400).json({ message: "Quantity must be 1 or more", error: true, success: false });
+      }
+    }
+
+    // Variant (jo field bheji hai wahi badlo, valid option hona chahiye)
+    const variant = {};
+    for (const [field, label] of VARIANT_FIELDS) {
+      const options = toArr(product[field]);
+      if (req.body[field] === undefined) {
+        variant[field] = cartItem[field] || "";
+        continue;
+      }
+      const chosen = String(req.body[field] || "").trim();
+      if (options.length > 0 && !options.includes(chosen)) {
+        return res.status(400).json({ message: `Invalid ${label}`, error: true, success: false });
+      }
+      variant[field] = options.length > 0 ? chosen : "";
+    }
+
+    const variantChanged = Object.keys(variant).some((f) => (cartItem[f] || "") !== variant[f]);
+
+    // Same product + same naya variant wala doosra item?
+    const duplicate = variantChanged
+      ? await CartProduct.findOne({ userId, productId: cartItem.productId, ...variant, _id: { $ne: cartItem._id } })
+      : null;
+
+    const finalQty = duplicate ? duplicate.quantity + quantity : quantity;
+    if (product.countInStock > 0 && finalQty > product.countInStock) {
       return res.status(400).json({
-        message: "Cart item ID and quantity are required",
+        message: `Only ${product.countInStock} items in stock`,
         error: true,
         success: false,
       });
     }
 
-    const updateCartItem = await CartProduct.updateOne(
-      { _id, userId },
-      { quantity }
-    );
+    if (duplicate) {
+      duplicate.quantity = finalQty;
+      await duplicate.save();
+      await CartProduct.deleteOne({ _id: cartItem._id });
+      return res.status(200).json({
+        data: duplicate,
+        message: "Same option already in cart, items merged",
+        error: false,
+        success: true,
+      });
+    }
+
+    cartItem.quantity = quantity;
+    Object.assign(cartItem, variant);
+    await cartItem.save();
 
     return res.status(200).json({
-      data: updateCartItem,
-      message: "Cart item quantity updated successfully",
+      data: cartItem,
+      message: "Cart item updated successfully",
       error: false,
       success: true,
     });
@@ -99,19 +195,20 @@ export const updateCartItemQtyController = async (req, res) => {
 export const deleteCartItemController = async (req, res) => {
   try {
     const userId = req.userId;
-    const { _id, productId } = req.body;
+    const { id } = req.params;
 
-    if (!(_id && productId)) {
+    if (!id) {
       return res.status(400).json({
-        message: "Cart item ID and product ID are required",
+        message: "Cart item ID is required",
         error: true,
         success: false,
       });
     }
 
-    const deleteCartItem = await CartProduct.deleteOne({ _id, userId });
+    // Sirf apne cart ka item delete ho sake
+    const deletedItem = await CartProduct.findOneAndDelete({ _id: id, userId });
 
-    if (!deleteCartItem) {
+    if (!deletedItem) {
       return res.status(404).json({
         message: "Cart item not found",
         error: true,
@@ -119,20 +216,16 @@ export const deleteCartItemController = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ _id: userId });
-
-    const cartItems = user?.shopping_cart || [];
-
-    const UpdateuserCart = [
-      ...cartItems.slice(0, cartItems.indexOf(productId)),
-      ...cartItems.slice(cartItems.indexOf(productId) + 1),
-    ];
-
-    user.shopping_cart = UpdateuserCart;
-    await user.save();
+    const stillInCart = await CartProduct.exists({ userId, productId: deletedItem.productId });
+    if (!stillInCart) {
+      await User.updateOne(
+        { _id: userId },
+        { $pull: { shopping_cart: deletedItem.productId } }
+      );
+    }
 
     return res.status(200).json({
-      data: deleteCartItem,
+      data: deletedItem,
       message: "Cart item removed successfully",
       error: false,
       success: true,

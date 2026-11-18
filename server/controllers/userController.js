@@ -1,3 +1,6 @@
+import CartProduct from "../models/CartProduct.js";
+import Address from "../models/Address.js";
+import MyList from "../models/MyList.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -161,12 +164,30 @@ export const loginUserController = async (req, res) => {
       });
     }
 
+    // Google se bana account jiska password set nahi hai
+    if (!user.password) {
+      return res.status(400).json({
+        message: "This account uses Google login. Please continue with Google.",
+        error: true,
+        success: false,
+      });
+    }
+
     const checkPassword = await bcrypt.compare(password, user.password);
 
     if (!checkPassword) {
       return res
         .status(400)
         .json({ message: "Invalid Credentials", error: true, success: false });
+    }
+
+    // Admin panel se login: sirf admin role (token issue hone se pehle hi rok do)
+    if (req.body.adminLogin === true && user.role !== "admin") {
+      return res.status(403).json({
+        message: "Admin access only",
+        error: true,
+        success: false,
+      });
     }
 
     const accessToken = await generateAccessToken(user._id);
@@ -191,7 +212,7 @@ export const loginUserController = async (req, res) => {
       data: {
         accessToken,
         refreshToken,
-        user,
+        user: await User.findById(user._id).select("-password -refreshToken -otp -otp_expires"),
       },
     });
   } catch (error) {
@@ -313,7 +334,8 @@ export const removeImagefromCloudinary = async (req, res) => {
 export const updateUserDetails = async (req, res) => {
   try {
     const userId = req.userId;
-    const { name, email, mobile, country, password } = req.body;
+    // Profile se sirf naam, email, mobile badlte hain (password ke liye change-password API hai)
+    const { name, email, mobile } = req.body;
 
     const userExist = await User.findById(userId);
     if (!userExist) {
@@ -325,29 +347,17 @@ export const updateUserDetails = async (req, res) => {
     let verifyCode = "";
     if (email && email !== userExist.email) {
       verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-      userExist.otp_expires = Date.now() + 10 * 60 * 1000; // 10 minutes from now
-    }
-
-    let hashPassword = "";
-
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      const hashPassword = await bcrypt.hash(password, salt);
-    } else {
-      hashPassword = userExist.password;
     }
 
     const updateUser = await User.findByIdAndUpdate(
       userId,
       {
-        name: name,
-        email: email,
+        name: name ?? userExist.name,
+        email: email || userExist.email,
+        mobile: mobile ?? userExist.mobile,
         verify_email: verifyCode !== "" ? false : userExist.verify_email,
-        mobile: mobile,
-        country: country,
-        password: hashPassword,
-        otp: verifyCode !== "" ? verifyCode : null,
-        otp_expires: verifyCode !== "" ? Date.now() + 10 * 60 * 1000 : "",
+        otp: verifyCode !== "" ? verifyCode : userExist.otp,
+        otp_expires: verifyCode !== "" ? Date.now() + 10 * 60 * 1000 : userExist.otp_expires,
       },
       { new: true }
     );
@@ -553,7 +563,7 @@ export const refreshTokenController = async (req, res) => {
 
     const verifyToken = await jwt.verify(
       refreshToken,
-      process.env.JWT_REFRESH_SECRET_TOKEN
+      process.env.JWT_SECRET_REFRESH_TOKEN
     );
 
     if (!verifyToken) {
@@ -706,12 +716,19 @@ export const googleLoginController = async (req, res) => {
       await user.save();
     } else {
       // Existing user — update googleId and flag if not already set
+      let changed = false;
       if (!user.googleId) {
         user.googleId = uid;
         user.loginWithGoogle = true;
         if (picture && !user.avatar) user.avatar = picture;
-        await user.save();
+        changed = true;
       }
+      // Google ne email verify kar diya hai, to account bhi verified maano
+      if (!user.verify_email && decodedToken.email_verified) {
+        user.verify_email = true;
+        changed = true;
+      }
+      if (changed) await user.save();
     }
 
     // Check account status
@@ -744,7 +761,8 @@ export const googleLoginController = async (req, res) => {
       data: {
         accessToken,
         refreshToken,
-        user,
+        // password hash / otp / refresh token frontend ko nahi bhejte
+        user: await User.findById(user._id).select("-password -refreshToken -otp -otp_expires"),
       },
     });
   } catch (error) {
@@ -753,5 +771,52 @@ export const googleLoginController = async (req, res) => {
       error: true,
       success: false,
     });
+  }
+};
+
+// ── Admin: users ──
+// Sirf safe fields (password / otp / tokens kabhi nahi)
+export const getAllUsersController = async (req, res) => {
+  try {
+    const users = await User.find()
+      .select("name email mobile avatar role verify_email status createdAt")
+      .sort({ createdAt: -1 });
+    return res.status(200).json({ error: false, success: true, data: users });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// Kai users ek saath delete. Admin accounts (aur khud) kabhi delete nahi.
+// User ka cart / address / my list bhi hatata hai. Orders + reviews rehte hain (hisaab / rating).
+export const deleteMultipleUsersController = async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (ids.length === 0) {
+      return res.status(400).json({ message: "No users selected", error: true, success: false });
+    }
+
+    const users = await User.find({ _id: { $in: ids }, role: { $ne: "admin" } }).select("_id");
+    const deletableIds = users.map((u) => u._id).filter((id) => String(id) !== String(req.userId));
+    if (deletableIds.length === 0) {
+      return res.status(400).json({ message: "Admin accounts can't be deleted", error: true, success: false });
+    }
+
+    await Promise.all([
+      CartProduct.deleteMany({ userId: { $in: deletableIds } }),
+      Address.deleteMany({ userId: { $in: deletableIds } }),
+      MyList.deleteMany({ userId: { $in: deletableIds.map(String) } }),
+    ]);
+    const result = await User.deleteMany({ _id: { $in: deletableIds } });
+
+    const skipped = ids.length - result.deletedCount;
+    return res.status(200).json({
+      message: `${result.deletedCount} user(s) deleted` + (skipped > 0 ? `, ${skipped} skipped (admin)` : ""),
+      error: false,
+      success: true,
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
 };

@@ -12,6 +12,9 @@ import { CircularProgress } from "@mui/material";
 import { getData, postData, putData, deleteData } from "../../utils/api";
 import { MyContext } from "../../App";
 
+// Purana data string ho sakta hai ("4GB") — hamesha array banao
+const toArr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean);
+
 const EditProduct = ({ data }) => {
   const context = useContext(MyContext);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,9 +34,9 @@ const EditProduct = ({ data }) => {
     countInStock: data?.countInStock || 0,
     rating: data?.rating || 0,
     productFlags: data?.productFlags || [],
-    productRam: data?.productRam || "",
-    size: data?.size || "",
-    productWeight: data?.productWeight || "",
+    productRam: toArr(data?.productRam),
+    size: toArr(data?.size),
+    productWeight: toArr(data?.productWeight),
     catId: data?.catId?._id || data?.catId || "",
     subCatId: data?.subCatId?._id || data?.subCatId || "",
     thirdSubCatId: data?.thirdSubCatId?._id || data?.thirdSubCatId || ""
@@ -377,14 +380,15 @@ const EditProduct = ({ data }) => {
               <h3 className="text-[14px] font-[500] mb-1">Product Rams</h3>
               <Select
                 name="productRam"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.productRam}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {ramList.map((ram, index) => (
+                                {ramList.map((ram, index) => (
                   <MenuItem key={index} value={ram.name}>{ram.name}</MenuItem>
                 ))}
               </Select>
@@ -394,14 +398,15 @@ const EditProduct = ({ data }) => {
               <h3 className="text-[14px] font-[500] mb-1">Product Weight</h3>
               <Select
                 name="productWeight"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.productWeight}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {weightList.map((weight, index) => (
+                                {weightList.map((weight, index) => (
                   <MenuItem key={index} value={weight.name}>{weight.name}</MenuItem>
                 ))}
               </Select>
@@ -414,14 +419,15 @@ const EditProduct = ({ data }) => {
               <h3 className="text-[14px] font-[500] mb-1">Product Size</h3>
               <Select
                 name="size"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.size}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {sizeList.map((size, index) => (
+                                {sizeList.map((size, index) => (
                   <MenuItem key={index} value={size.name}>{size.name}</MenuItem>
                 ))}
               </Select>

@@ -1,132 +1,113 @@
-import React, { useState } from 'react'
+import React, { useContext, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { IoClose } from "react-icons/io5";
 import { FaAngleDown } from "react-icons/fa";
-import { FaAngleUp } from "react-icons/fa";
-
-
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import { Rating } from '@mui/material';
+import { MyContext } from '../../App';
+import { VARIANT_FIELDS, formatPrice, getVariantOptions } from '../../utils/formatPrice';
 
-const CartItems = (props) => {
-    // State for size selection
-    const [sizeAnchorEl, setSizeAnchorEl] = useState(null);
-    const [selectedSize, setSelectedSize] = useState(props.size);
-    const openSize = Boolean(sizeAnchorEl);
-    
-    // State for quantity selection
+const CartItems = ({ item }) => {
+
+    const context = useContext(MyContext)
+    const product = item.productId
+
     const [qtyAnchorEl, setQtyAnchorEl] = useState(null);
-    const [selectedQty, setSelectedQty] = useState(props.qty);
     const openQty = Boolean(qtyAnchorEl);
-    
-    // Handlers for size selection
-    const handleClickSize = (event) => {
-        setSizeAnchorEl(event.currentTarget);
-    };
-    const handleCloseSize = (value) => {
-        setSizeAnchorEl(null);
-        if (value !== null) {
-            setSelectedSize(value)
+
+    // Stock tak (max 10) qty options
+    const maxQty = Math.max(1, Math.min(product?.countInStock || 10, 10))
+    const qtyOptions = Array.from({ length: maxQty }, (_, i) => i + 1)
+
+    // Size / RAM / weight dropdown (sirf jin fields ke product mein options hain)
+    const options = getVariantOptions(product)
+    const [variantMenu, setVariantMenu] = useState({ anchor: null, key: null })
+
+    const handleSelectVariant = (value) => {
+        const key = variantMenu.key
+        setVariantMenu({ anchor: null, key: null })
+        if (key && value !== null && value !== item[key]) {
+            context.updateCartVariant(item._id, key, value)
         }
     }
 
-    // Handlers for quantity selection
-    const handleClickQty = (event) => {
-        setQtyAnchorEl(event.currentTarget);
-    };
     const handleCloseQty = (value) => {
         setQtyAnchorEl(null);
-        if (value !== null) {
-            setSelectedQty(value)
+        if (value !== null && value !== item.quantity) {
+            context.updateCartQty(item._id, value)
         }
     }
 
   return (
                     <div className='flex items-center w-full gap-4 p-3 pb-5 border-b border-[rgba(0,0,0,0.1)] cartItem'>
                         <div className='img w-[15%] rounded-md overflow-hidden group'>
-                            <Link to='/product/834'>
-                                <img src='https://serviceapi.spicezgold.com/download/1742463096955_hbhb1.jpg' alt='Product' 
+                            <Link to={`/product/${product._id}`}>
+                                <img src={product.images?.[0]} alt={product.name}
                                 className='w-full transition-all group-hover:scale-105' />
                             </Link>
                         </div>
-                        
+
                         <div className='info w-[85%] relative'>
-                            <IoClose className='absolute cursor-pointer top-[0px] right-[0px] text-[22px]'/>
-                            <span className='text-[13px]'>Stylato</span>
+                            <IoClose className='absolute cursor-pointer top-[0px] right-[0px] text-[22px]'
+                                onClick={() => context.removeCartItem(item._id)} />
+                            <span className='text-[13px]'>{product.brand || 'Generic'}</span>
                             <h3 className='text-[15px] w-[85%]'>
-                                <Link className='link'>
-                                    Large 33 L Laptop 
-                                    Backpack 33 L Waterproof 5-Zipper Compartment 
-                                    Premium Daily Use Bags For All Day Support Blue
+                                <Link to={`/product/${product._id}`} className='link'>
+                                    {product.name}
                                 </Link>
                             </h3>
 
-                            <Rating name="size-small" defaultValue={4} size="small" readOnly/>
+                            <Rating name={`rating-${item._id}`} value={product.rating || 0} size="small" readOnly precision={0.5}/>
 
                             <div className='flex items-center gap-4 mt-2'>
-                                <div className='relative'>
-                                    <span 
-                                    className='flex py-1 px-2 items-center justify-center bg-[#f1f1f1] text-[12px] font-[600] rounded-md cursor-pointer'
-                                    onClick={handleClickSize}
-                                    >
-                                        Size: {selectedSize} <FaAngleDown className='text-[14px] ml-1'/>
+                                {VARIANT_FIELDS.filter(({ key }) => options[key].length > 0).map(({ key, label }) => (
+                                    <span key={key}
+                                        className='flex py-1 px-2 items-center justify-center bg-[#f1f1f1] text-[12px] font-[600] rounded-md cursor-pointer'
+                                        onClick={(e) => setVariantMenu({ anchor: e.currentTarget, key })}>
+                                        {label}: {item[key] || 'Select'} <FaAngleDown className='text-[14px] ml-1'/>
                                     </span>
+                                ))}
 
-                                    <Menu
-                                        id="size-menu"
-                                        anchorEl={sizeAnchorEl}
-                                        open={openSize}
-                                        onClose={()=>handleCloseSize(null)}
-                                        slotProps={{
-                                        list: {
-                                            'aria-labelledby': 'basic-button',
-                                        },
-                                        }}
-                                    >
-                                        <MenuItem onClick={()=>handleCloseSize('S')}>S</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseSize('M')}>M</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseSize('L')}>L</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseSize('XL')}>XL</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseSize('XXL')}>XXL</MenuItem>
-                                    </Menu>
-                                </div>
+                                <Menu
+                                    id={`variant-menu-${item._id}`}
+                                    anchorEl={variantMenu.anchor}
+                                    open={Boolean(variantMenu.anchor)}
+                                    onClose={() => handleSelectVariant(null)}
+                                >
+                                    {(options[variantMenu.key] || []).map((value) => (
+                                        <MenuItem key={value} selected={value === item[variantMenu.key]}
+                                            onClick={() => handleSelectVariant(value)}>{value}</MenuItem>
+                                    ))}
+                                </Menu>
                                 <div>
                                     <span className='flex py-1 px-2 items-center justify-center bg-[#f1f1f1] text-[12px] font-[600] rounded-md cursor-pointer'
-                                    onClick={handleClickQty}
+                                    onClick={(e) => setQtyAnchorEl(e.currentTarget)}
                                     >
-                                        Qty: {selectedQty} <FaAngleDown className='text-[14px] ml-1'/>
+                                        Qty: {item.quantity} <FaAngleDown className='text-[14px] ml-1'/>
                                     </span>
 
                                     <Menu
-                                        id="size-menu"
+                                        id={`qty-menu-${item._id}`}
                                         anchorEl={qtyAnchorEl}
                                         open={openQty}
                                         onClose={()=>handleCloseQty(null)}
-                                        slotProps={{
-                                        list: {
-                                            'aria-labelledby': 'basic-button',
-                                        },
-                                        }}
                                     >
-                                        <MenuItem onClick={()=>handleCloseQty(1)}>1</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(2)}>2</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(3)}>3</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(4)}>4</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(5)}>5</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(6)}>6</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(7)}>7</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(8)}>8</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(9)}>9</MenuItem>
-                                        <MenuItem onClick={()=>handleCloseQty(10)}>10</MenuItem>
+                                        {qtyOptions.map((q) => (
+                                            <MenuItem key={q} selected={q === item.quantity} onClick={()=>handleCloseQty(q)}>{q}</MenuItem>
+                                        ))}
                                     </Menu>
                                 </div>
                             </div>
-                            
+
                             <div className='flex items-center gap-4 mt-2'>
-                                <span className='font-[600] newPrice text-[14px]'>580</span>
-                                <span className='text-gray-500 font-[500] line-through oldPrice text-[14px]'>580</span>
-                                <span className='font-[600] newPrice text-primary text-[14px]'>55% off</span>
+                                <span className='font-[600] newPrice text-[14px]'>{formatPrice(product.price)}</span>
+                                {product.oldprice > 0 && (
+                                    <span className='text-gray-500 font-[500] line-through oldPrice text-[14px]'>{formatPrice(product.oldprice)}</span>
+                                )}
+                                {product.discount > 0 && (
+                                    <span className='font-[600] newPrice text-primary text-[14px]'>{product.discount}% off</span>
+                                )}
                             </div>
                         </div>
                     </div>

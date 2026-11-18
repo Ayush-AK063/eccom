@@ -6,6 +6,7 @@ import Button from "@mui/material/Button";
 import { FaAngleDown } from "react-icons/fa";
 import { FaAngleUp } from "react-icons/fa";
 import AdminBadge from "../../Components/AdminBadge";
+import OrdersTable from "../../Components/OrdersTable";
 import Checkbox from "@mui/material/Checkbox";
 import { Link } from "react-router-dom";
 import Progress from "../../Components/ProgressBar";
@@ -25,8 +26,8 @@ import { useContext, useEffect } from "react";
 import { getData, deleteData } from "../../utils/api";
 
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -103,80 +104,18 @@ const Dashboard = () => {
     setPage(value);
   };
 
-  const [chart1Data, setChart1Data] = useState([
-    {
-      name: "JAN",
-      Total_Users: 4000,
-      Total_Sales: 2400,
-      amt: 2400,
-    },
-    {
-      name: "FEB",
-      Total_Users: 3000,
-      Total_Sales: 1398,
-      amt: 2210,
-    },
-    {
-      name: "MAR",
-      Total_Users: 2000,
-      Total_Sales: 9800,
-      amt: 2290,
-    },
-    {
-      name: "APR",
-      Total_Users: 2780,
-      Total_Sales: 3908,
-      amt: 2000,
-    },
-    {
-      name: "MAY",
-      Total_Users: 1890,
-      Total_Sales: 4800,
-      amt: 2181,
-    },
-    {
-      name: "JUNE",
-      Total_Users: 2390,
-      Total_Sales: 3800,
-      amt: 2500,
-    },
-    {
-      name: "JULY",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-    {
-      name: "AUG",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-    {
-      name: "SEPT",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-    {
-      name: "OCT",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-    {
-      name: "NOV",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-    {
-      name: "DEC",
-      Total_Users: 3490,
-      Total_Sales: 4300,
-      amt: 2100,
-    },
-  ]);
+  // ── Dashboard stats + chart ──
+  const [stats, setStats] = useState(null);
+  const [chartYear, setChartYear] = useState(new Date().getFullYear());
+  const [chartType, setChartType] = useState("Total_Sales"); // ya "Total_Users"
+
+  useEffect(() => {
+    getData(`/api/order/dashboard-stats?year=${chartYear}`).then((res) => {
+      if (res?.error === false) setStats(res.data);
+    });
+  }, [chartYear]);
+
+  const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   const handleChangeCatFilter = (event) => {
     isCategoryFilterValue(event.target.value);
@@ -213,7 +152,7 @@ const Dashboard = () => {
 
         <img src="/shop-illustration.webp" alt="" className="w-[250px]" />
       </div>
-      <DashboardBoxes />
+      <DashboardBoxes stats={stats} />
 
       <div className="card my-4 shadow-md sm:rounded-lg bg-white">
         <div className="flex items-center justify-between px-5 py-5">
@@ -396,332 +335,9 @@ const Dashboard = () => {
       <div className="card my-4 shadow-md sm:rounded-lg bg-white">
         <div className="flex items-center justify-between px-5 py-5">
           <h2 className="text-[18px] font-[600]">Recent Orders</h2>
+          <Link to="/orders" className="text-primary text-[14px] font-[500]">View all</Link>
         </div>
-        <div className="relative mt-5 pb-5 overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-100 ">
-              <tr>
-                <th scope="col" className="px-6 py-3">
-                  Product
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Order Id
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Payment Id
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Name
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Phone no.
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Address
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Pincode
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Total Amount
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Email
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  User Id
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Order Status
-                </th>
-                <th scope="col" className="px-6 py-3 whitespace-nowrap">
-                  Date
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-white border-b border-gray-200">
-                <td className="px-6 py-4 font-[500]">
-                  <Button
-                    className="!w-[35px] !h-[35px] !min-w-[35px] !rounded-full !bg-[#f1f1f1]"
-                    onClick={() => {
-                      isShowOrderedProduct(0);
-                    }}
-                  >
-                    {isOpenOrderedProduct === 0 ? (
-                      <FaAngleUp className="text-[16px] text-[rgba(0,0,0,0.7)]" />
-                    ) : (
-                      <FaAngleDown className="text-[16px] text-[rgba(0,0,0,0.7)]" />
-                    )}
-                  </Button>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">
-                    6846a3b9228db479bb58221a
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">jvkdnj837kjbf</span>
-                </td>
-                <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                  Ayush martand 57
-                </td>
-                <td className="px-6 py-4 font-[500]">918347737397</td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="block w-[400px]">
-                    asnnan s jc sj jbasbfuabfb j csj ccs j India
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">210001</td>
-                <td className="px-6 py-4 font-[500]">45999</td>
-                <td className="px-6 py-4 font-[500]">
-                  ayushmartandas@gmail.com
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">
-                    68020c35228db479bb25633a
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <AdminBadge status="pending" />
-                </td>
-                <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                  2025-06-09
-                </td>
-              </tr>
-
-              {isOpenOrderedProduct === 0 && (
-                <tr>
-                  <td className="pl-28 " colSpan="6">
-                    <table className="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 ">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Product Id
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Product Title
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Image
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Quantity
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Price
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Sub Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="bg-white border-b border-gray-200">
-                          <td className="px-6 py-4 font-[500]">
-                            <span className="text-gray-600">
-                              6846a3b9228db479bb58221a
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-[500]">
-                            abajjhvsvchj hjs jhvcadv....
-                          </td>
-                          <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                            <img
-                              src=""
-                              className="w-[40px] h-[40px] object-cover rounded-md"
-                            />
-                          </td>
-                          <td className="px-6 py-4 font-[500]">2</td>
-                          <td className="px-6 py-4 font-[500]">2000</td>
-                          <td className="px-6 py-4 font-[500]">1300</td>
-                        </tr>
-
-                        <tr className="bg-white border-b border-gray-200">
-                          <td className="px-6 py-4 font-[500]">
-                            <span className="text-gray-600">
-                              6846a3b9228db479bb58221a
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-[500]">
-                            abajjhvsvchj hjs jhvcadv....
-                          </td>
-                          <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                            <img
-                              src=""
-                              className="w-[40px] h-[40px] object-cover rounded-md"
-                            />
-                          </td>
-                          <td className="px-6 py-4 font-[500]">2</td>
-                          <td className="px-6 py-4 font-[500]">2000</td>
-                          <td className="px-6 py-4 font-[500]">1300</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              )}
-
-              <tr className="bg-white border-b border-gray-200">
-                <td className="px-6 py-4 font-[500]">
-                  <Button
-                    className="!w-[35px] !h-[35px] !min-w-[35px] !rounded-full !bg-[#f1f1f1]"
-                    onClick={() => {
-                      isShowOrderedProduct(1);
-                    }}
-                  >
-                    {isOpenOrderedProduct === 1 ? (
-                      <FaAngleUp className="text-[16px] text-[rgba(0,0,0,0.7)]" />
-                    ) : (
-                      <FaAngleDown className="text-[16px] text-[rgba(0,0,0,0.7)]" />
-                    )}
-                  </Button>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">
-                    6846a3b9228db479bb58221a
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">jvkdnj837kjbf</span>
-                </td>
-                <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                  Ayush martand 57
-                </td>
-                <td className="px-6 py-4 font-[500]">918347737397</td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="block w-[400px]">
-                    asnnan s jc sj jbasbfuabfb j csj ccs j India
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">210001</td>
-                <td className="px-6 py-4 font-[500]">45999</td>
-                <td className="px-6 py-4 font-[500]">
-                  ayushmartandas@gmail.com
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <span className="text-primary font-[700]">
-                    68020c35228db479bb25633a
-                  </span>
-                </td>
-                <td className="px-6 py-4 font-[500]">
-                  <AdminBadge status="pending" />
-                </td>
-                <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                  2025-06-09
-                </td>
-              </tr>
-
-              {isOpenOrderedProduct === 1 && (
-                <tr>
-                  <td className="pl-28 " colSpan="6">
-                    <table className="w-full text-sm text-left text-gray-500 rtl:text-right dark:text-gray-400">
-                      <thead className="text-xs text-gray-700 uppercase bg-gray-50 ">
-                        <tr>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Product Id
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Product Title
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Image
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Quantity
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Price
-                          </th>
-                          <th
-                            scope="col"
-                            className="px-6 py-3 whitespace-nowrap"
-                          >
-                            Sub Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="bg-white border-b border-gray-200">
-                          <td className="px-6 py-4 font-[500]">
-                            <span className="text-primary">
-                              6846a3b9228db479bb58221a
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-[500]">
-                            abajjhvsvchj hjs jhvcadv....
-                          </td>
-                          <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                            <img
-                              src=""
-                              className="w-[40px] h-[40px] object-cover rounded-md"
-                            />
-                          </td>
-                          <td className="px-6 py-4 font-[500]">2</td>
-                          <td className="px-6 py-4 font-[500]">2000</td>
-                          <td className="px-6 py-4 font-[500]">1300</td>
-                        </tr>
-
-                        <tr className="bg-white border-b border-gray-200">
-                          <td className="px-6 py-4 font-[500]">
-                            <span className="text-primary">
-                              6846a3b9228db479bb58221a
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-[500]">
-                            abajjhvsvchj hjs jhvcadv....
-                          </td>
-                          <td className="px-6 py-4 font-[500] whitespace-nowrap">
-                            <img
-                              src=""
-                              className="w-[40px] h-[40px] object-cover rounded-md"
-                            />
-                          </td>
-                          <td className="px-6 py-4 font-[500]">2</td>
-                          <td className="px-6 py-4 font-[500]">2000</td>
-                          <td className="px-6 py-4 font-[500]">1300</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <OrdersTable limit={5} />
       </div>
 
       <div className="card my-4 shadow-md sm:rounded-lg bg-white">
@@ -729,47 +345,38 @@ const Dashboard = () => {
           <h2 className="text-[18px] font-[600]">Total Users & Total Sales</h2>
         </div>
 
-        <div className="flex items-center gap-5 px-5 py-5 pt-1">
-          <span className="flex items-center gap-1 text-[15px]">
-            <span className="block w-[8px] h-[8px] rounded-full bg-green-600"></span>
-            Total Users
-          </span>
-
-          <span className="flex items-center gap-1 text-[15px]">
-            <span className="block w-[8px] h-[8px] rounded-full bg-primary"></span>
-            Total Sales
-          </span>
+        <div className="flex items-center justify-between gap-5 px-5 py-5 pt-3">
+          <div className="flex items-center gap-5">
+            <span onClick={() => setChartType("Total_Users")}
+              className={`flex items-center gap-1 text-[15px] cursor-pointer ${chartType === "Total_Users" ? "font-[600]" : "opacity-60"}`}>
+              <span className="block w-[8px] h-[8px] rounded-full bg-[#3278fa]"></span>
+              Total Users
+            </span>
+            <span onClick={() => setChartType("Total_Sales")}
+              className={`flex items-center gap-1 text-[15px] cursor-pointer ${chartType === "Total_Sales" ? "font-[600]" : "opacity-60"}`}>
+              <span className="block w-[8px] h-[8px] rounded-full bg-[#10b981]"></span>
+              Total Sales
+            </span>
+          </div>
+          <Select size="small" value={chartYear} onChange={(e) => setChartYear(e.target.value)} className="w-[110px]">
+            {yearOptions.map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+          </Select>
         </div>
-        <LineChart
-          width={1000}
-          height={500}
-          data={chart1Data}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="none" />
-          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} />
-          <Tooltip />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="Total_Sales"
-            stroke="#8884d8"
-            strokeWidth={3}
-            activeDot={{ r: 8 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="Total_Users"
-            stroke="#82ca9d"
-            strokeWidth={3}
-          />
-        </LineChart>
+        <div className="w-full h-[450px] px-2 pb-5">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stats?.monthly || []} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false}
+                tickFormatter={(v) => chartType === "Total_Sales" ? "₹" + Number(v).toLocaleString("en-IN") : v} />
+              <Tooltip formatter={(v) => chartType === "Total_Sales"
+                ? Number(v).toLocaleString("en-IN", { style: "currency", currency: "INR" }) : v} />
+              <Legend />
+              <Bar dataKey={chartType} name={chartType === "Total_Sales" ? "Total Sales" : "Total Users"}
+                fill={chartType === "Total_Sales" ? "#10b981" : "#3278fa"} radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </>
   );

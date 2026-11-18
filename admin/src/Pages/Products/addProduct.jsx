@@ -31,9 +31,9 @@ const AddProduct = () => {
     countInStock: 0,
     rating: 0,
     productFlags: [],
-    productRam: "",
-    size: "",
-    productWeight: "",
+    productRam: [],
+    size: [],
+    productWeight: [],
     catId: "",
     subCatId: "",
     thirdSubCatId: ""
@@ -363,14 +363,15 @@ const AddProduct = () => {
               <h3 className="text-[14px] font-[500] mb-1">Product Rams</h3>
               <Select
                 name="productRam"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.productRam}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {ramList.map((ram, index) => (
+                                {ramList.map((ram, index) => (
                   <MenuItem key={index} value={ram.name}>{ram.name}</MenuItem>
                 ))}
               </Select>
@@ -380,14 +381,15 @@ const AddProduct = () => {
               <h3 className="text-[14px] font-[500] mb-1">Product Weight</h3>
               <Select
                 name="productWeight"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.productWeight}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {weightList.map((weight, index) => (
+                                {weightList.map((weight, index) => (
                   <MenuItem key={index} value={weight.name}>{weight.name}</MenuItem>
                 ))}
               </Select>
@@ -400,14 +402,15 @@ const AddProduct = () => {
               <h3 className="text-[14px] font-[500] mb-1">Product Size</h3>
               <Select
                 name="size"
+                multiple
                 className="w-full bg-white"
                 size="small"
                 value={formFields.size}
                 onChange={handleChange}
                 displayEmpty
+                renderValue={(selected) => (selected?.length ? selected.join(", ") : "None")}
               >
-                <MenuItem value={""}>None</MenuItem>
-                {sizeList.map((size, index) => (
+                                {sizeList.map((size, index) => (
                   <MenuItem key={index} value={size.name}>{size.name}</MenuItem>
                 ))}
               </Select>

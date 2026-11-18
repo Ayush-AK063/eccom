@@ -16,7 +16,7 @@ const MyListSchema = new mongoose.Schema(
     },
     image: {
       type: String,
-      required: true,
+      default: "",
     },
     rating: {
       type: Number,
@@ -28,15 +28,15 @@ const MyListSchema = new mongoose.Schema(
     },
     oldPrice: {
       type: Number,
-      required: true,
+      default: 0,
     },
     discount: {
       type: Number,
-      required: true,
+      default: 0,
     },
     brand: {
       type: String,
-      required: true,
+      default: "",
     },
   },
   { timestamps: true }

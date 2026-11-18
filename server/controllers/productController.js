@@ -10,6 +10,10 @@ cloudinary.config({
   secure: true,
 });
 
+// Variant fields (RAM / size / weight) hamesha saaf string array ho — "4GB" ya ["4GB","8GB"] dono chalega
+const toVariantArr = (v) =>
+  (Array.isArray(v) ? v : v ? [v] : []).map((x) => String(x).trim()).filter((x) => x && x !== "null");
+
 export const uploadImages = async (req, res) => {
   try {
     const uploadedImages = [];
@@ -63,9 +67,9 @@ export const createProduct = async (req, res) => {
       rating: req.body.rating || 0,
       productFlags: req.body.productFlags || [],
       discount: req.body.discount,
-      productRam: req.body.productRam || null,
-      size: req.body.size || null,
-      productWeight: req.body.productWeight || null,
+      productRam: toVariantArr(req.body.productRam),
+      size: toVariantArr(req.body.size),
+      productWeight: toVariantArr(req.body.productWeight),
     });
 
     product = await product.save();
@@ -672,9 +676,9 @@ export const updateProduct = async (req, res) => {
         rating: req.body.rating || 0,
         productFlags: req.body.productFlags || [],
         discount: req.body.discount,
-        productRam: req.body.productRam || null,
-        size: req.body.size || null,
-        productWeight: req.body.productWeight || null,
+        productRam: toVariantArr(req.body.productRam),
+        size: toVariantArr(req.body.size),
+        productWeight: toVariantArr(req.body.productWeight),
       },
       { new: true }
     );
@@ -731,5 +735,102 @@ export const deleteMultipleProducts = async (req, res) => {
     return res
       .status(500)
       .json({ message: error.message || error, error: true, success: false });
+  }
+};
+
+// POST /api/product/filters
+// Body: { catId:[], subCatId:[], thirdSubCatId:[], minPrice, maxPrice, rating:[], availability:[],
+//         size:[], search, sortBy, order, page, limit }
+export const filterProducts = async (req, res) => {
+  try {
+    const {
+      catId = [],
+      subCatId = [],
+      thirdSubCatId = [],
+      minPrice,
+      maxPrice,
+      rating = [],
+      availability = [],
+      size = [],
+      search = "",
+      sortBy = "",
+      order = "asc",
+      page = 1,
+      limit = 12,
+    } = req.body;
+
+    const toArr = (v) => (Array.isArray(v) ? v : v ? [v] : []).filter(Boolean);
+    const query = {};
+
+    if (toArr(catId).length) query.catId = { $in: toArr(catId) };
+    if (toArr(subCatId).length) query.subCatId = { $in: toArr(subCatId) };
+    if (toArr(thirdSubCatId).length) query.thirdSubCatId = { $in: toArr(thirdSubCatId) };
+
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      query.price = {};
+      if (minPrice !== undefined && minPrice !== "") query.price.$gte = Number(minPrice);
+      if (maxPrice !== undefined && maxPrice !== "") query.price.$lte = Number(maxPrice);
+      if (Object.keys(query.price).length === 0) delete query.price;
+    }
+
+    // Rating: [4] => 4 star aur usse upar (4 - 4.99) ; multiple select ho to OR
+    const ratings = toArr(rating).map(Number).filter((r) => r >= 1 && r <= 5);
+    if (ratings.length) {
+      query.$or = ratings.map((r) => ({ rating: { $gte: r, $lt: r === 5 ? 5.01 : r + 1 } }));
+    }
+
+    // Availability: "inStock" / "outOfStock" (dono select = koi filter nahi)
+    const avail = toArr(availability);
+    if (avail.includes("inStock") && !avail.includes("outOfStock")) query.countInStock = { $gt: 0 };
+    if (avail.includes("outOfStock") && !avail.includes("inStock")) query.countInStock = { $lte: 0 };
+
+    if (toArr(size).length) query.size = { $in: toArr(size) };
+
+    // Search: naam, brand, category (teeno level) mein. Rating bhi $or use karta hai → $and se jodo
+    if (search && String(search).trim() !== "") {
+      const rx = { $regex: String(search).trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+      query.$and = [{ $or: [{ name: rx }, { brand: rx }, { catName: rx }, { subCat: rx }, { thirdSubCat: rx }] }];
+    }
+
+    const sortFields = { name: "name", price: "price", rating: "rating", createdAt: "createdAt" };
+    const sort = sortFields[sortBy]
+      ? { [sortFields[sortBy]]: order === "desc" ? -1 : 1 }
+      : { createdAt: -1 };
+
+    const perPage = Math.min(Math.max(parseInt(limit) || 12, 1), 100);
+    const currentPage = Math.max(parseInt(page) || 1, 1);
+
+    const total = await Product.countDocuments(query);
+    const products = await Product.find(query)
+      .sort(sort)
+      .skip((currentPage - 1) * perPage)
+      .limit(perPage);
+
+    return res.status(200).json({
+      error: false,
+      success: true,
+      products,
+      total,
+      page: currentPage,
+      totalPages: Math.ceil(total / perPage),
+    });
+  } catch (error) {
+    return res.status(500).json({ error: true, success: false, message: error.message });
+  }
+};
+
+// GET /api/product/search-suggestions?q=  → header dropdown ke liye top 5 (halka data)
+export const searchSuggestions = async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim().slice(0, 100);
+    if (q.length < 2) return res.status(200).json({ error: false, success: true, data: [] });
+    const rx = { $regex: q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    const data = await Product.find({ $or: [{ name: rx }, { brand: rx }, { catName: rx }, { subCat: rx }, { thirdSubCat: rx }] })
+      .select("name images price brand")
+      .sort({ rating: -1, createdAt: -1 })
+      .limit(5);
+    return res.status(200).json({ error: false, success: true, data });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || error, error: true, success: false });
   }
 };

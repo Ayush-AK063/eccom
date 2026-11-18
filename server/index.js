@@ -13,11 +13,14 @@ import categoryRouter from "./route/categoryRoute.js";
 import productRouter from "./route/productRoute.js";
 import cartRouter from "./route/cartRoute.js";
 import myListRouter from "./route/myListRoute.js";
+import orderRouter from "./route/orderRoute.js";
 import addressRouter from "./route/addressRoute.js";
 import productRamRouter from "./route/productRamRoute.js";
 import productWeightRouter from "./route/productWeightRoute.js";
 import productSizeRouter from "./route/productSizeRoute.js";
 import homeSlideRouter from "./route/homeSlideRoute.js";
+import blogRouter from "./route/blogRoute.js";
+import reviewRouter from "./route/reviewRoute.js";
 
 const app = express();
 const allowedOrigins = [
@@ -68,6 +71,9 @@ app.use("/api/productRam", productRamRouter);
 app.use("/api/productWeight", productWeightRouter);
 app.use("/api/productSize", productSizeRouter);
 app.use("/api/homeSlide", homeSlideRouter);
+app.use("/api/blog", blogRouter);
+app.use("/api/review", reviewRouter);
+app.use("/api/order", orderRouter);
 
 connectDB().then(() => {
   app.listen(process.env.PORT, () => {

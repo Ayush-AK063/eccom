@@ -14,6 +14,10 @@ const CartProductSchema = new mongoose.Schema(
       type: mongoose.Schema.ObjectId,
       ref: "user",
     },
+    // Chuna gaya variant (product mein option na ho to "")
+    size: { type: String, default: "" },
+    productRam: { type: String, default: "" },
+    productWeight: { type: String, default: "" },
   },
   { timestamps: true }
 );

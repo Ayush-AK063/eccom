@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Button, CircularProgress, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from "@mui/material";
 import { MyContext } from "../../App";
 import { useNavigate } from "react-router-dom";
-import { putData, postData, putDataForImage, getData } from "../../utils/api";
+import { putData, postData, putDataForImage, getData, deleteData } from "../../utils/api";
 import { Collapse } from "react-collapse";
 import { RiFolderUploadFill } from "react-icons/ri";
 import { FiEye, FiEdit, FiTrash2 } from "react-icons/fi";
@@ -232,7 +232,7 @@ const MyAccount = () => {
 
     const confirmDeleteAddress = () => {
         setIsLoading3(true);
-        fetchDataFromApi(`/api/address/${deleteId}`, null, { method: "DELETE" }).then((res) => {
+        deleteData(`/api/address/${deleteId}`).then((res) => {
             setIsLoading3(false);
             if (res?.error === false) {
                 context.openAlertBox("success", "Address deleted successfully");

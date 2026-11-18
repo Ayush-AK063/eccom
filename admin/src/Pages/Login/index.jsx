@@ -1,7 +1,6 @@
 import Button from "@mui/material/Button";
 import React, { useContext, useEffect, useState } from "react";
 import { IoMdLogIn } from "react-icons/io";
-import { PiUserCirclePlus } from "react-icons/pi";
 import { BsFacebook } from "react-icons/bs";
 import { FcGoogle } from "react-icons/fc";
 import { Link, NavLink, useNavigate } from "react-router-dom";
@@ -73,7 +72,7 @@ const Login = () => {
       return false;
     }
 
-    postData("/api/user/login", formFields, { withCredentials: true }).then(
+    postData("/api/user/login", { ...formFields, adminLogin: true }, { withCredentials: true }).then(
       (res) => {
         console.log(res);
 
@@ -158,12 +157,6 @@ const Login = () => {
             </Button>
           </NavLink>
 
-          <NavLink to="/signup" className={({ isActive }) => isActive ? "isActive" : ""}>
-            <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] bg-[#f1f1f1] !px-5 flex gap-1">
-              <PiUserCirclePlus className="text-[15px]" />
-              Sign Up
-            </Button>
-          </NavLink>
         </div>
       </header>
       <img

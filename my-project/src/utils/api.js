@@ -93,3 +93,24 @@ export const putData = async (url, updatedData) => {
     };
   }
 }
+
+export const deleteData = async (url) => {
+  try {
+    const params = {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accesstoken")}`,
+        "Content-Type": "application/json",
+      },
+    };
+
+    const response = await axios.delete(`${apiUrl}${url}`, params);
+
+    return response.data;
+  } catch (error) {
+    console.error("DELETE Error:", error.response?.data || error.message);
+    return {
+      error: true,
+      message: error.response?.data?.message || "Something went wrong",
+    };
+  }
+};

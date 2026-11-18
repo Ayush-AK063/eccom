@@ -1,7 +1,6 @@
 import Button from "@mui/material/Button";
 import React, { useContext, useState } from "react";
 import { IoMdLogIn } from "react-icons/io";
-import { PiUserCirclePlus } from "react-icons/pi";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { FaEye } from "react-icons/fa";
 import { FaEyeSlash } from "react-icons/fa";
@@ -90,12 +89,6 @@ const ChangePassword = () => {
             </Button>
           </NavLink>
 
-          <NavLink to="/signup" exact={true} activeClassName="isActive">
-            <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] bg-[#f1f1f1] !px-5 flex gap-1">
-              <PiUserCirclePlus className="text-[15px]" />
-              Sign Up
-            </Button>
-          </NavLink>
         </div>
       </header>
       <img

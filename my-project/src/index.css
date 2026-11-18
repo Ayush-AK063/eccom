@@ -350,3 +350,8 @@ button .MuiCircularProgress-root{
     width: 30px !important;
     height: 30px !important;
 }
+/* Address add/edit drawer */
+.addressPanel .MuiPaper-root{
+  width: 500px;
+  max-width: 100%;
+}

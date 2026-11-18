@@ -1,7 +1,6 @@
 import Button from "@mui/material/Button";
 import React, { useContext, useState } from "react";
 import { IoMdLogIn } from "react-icons/io";
-import { PiUserCirclePlus } from "react-icons/pi";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import OtpBox from "../../Components/OtpBox";
 import { MyContext } from "../../App";
@@ -93,12 +92,6 @@ const VerifyAccount = () => {
             </Button>
           </NavLink>
 
-          <NavLink to="/signup" className={({ isActive }) => isActive ? "isActive" : ""}>
-            <Button className="!rounded-full !text-[rgba(0,0,0,0.8)] bg-[#f1f1f1] !px-5 flex gap-1">
-              <PiUserCirclePlus className="text-[15px]" />
-              Sign Up
-            </Button>
-          </NavLink>
         </div>
       </header>
       <img

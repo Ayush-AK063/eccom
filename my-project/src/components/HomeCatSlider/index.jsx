@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useContext } from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Link } from 'react-router-dom';
 
@@ -8,18 +8,11 @@ import 'swiper/css/navigation';
 
 // import required modules
 import { Navigation } from 'swiper/modules';
-import { getData } from '../../utils/api';
+import { MyContext } from '../../App';
 
 const HomeCatSlider = () => {
-  const [categories, setCategories] = useState([]);
-
-  useEffect(() => {
-    getData('/api/category').then((res) => {
-      if (res?.success && res?.data) {
-        setCategories(res.data);
-      }
-    });
-  }, []);
+  const context = useContext(MyContext);
+  const categories = context?.catData || [];
 
   return (
     <div className='py-8 pt-4 homeCatSlider'>
@@ -33,7 +26,7 @@ const HomeCatSlider = () => {
         >
           {categories.length > 0 && categories.map((cat, index) => (
             <SwiperSlide key={cat._id || index}>
-              <Link to={`/products?category=${cat._id}`}>
+              <Link to={`/productListing?catId=${cat._id}`}>
                 <div className='flex flex-col items-center justify-center p-3 m-2 text-center bg-white rounded-md aspect-square item group'>
                   <img src={cat.images?.[0] || ''}
                     alt={cat.name}

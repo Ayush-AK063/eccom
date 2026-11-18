@@ -6,7 +6,6 @@ import Badge from "@mui/material/Badge";
 import { styled } from "@mui/material/styles";
 import IconButton from "@mui/material/IconButton";
 import { MdOutlineShoppingCart } from "react-icons/md";
-import { IoGitCompareOutline } from "react-icons/io5";
 import { FaRegHeart } from "react-icons/fa";
 import Tooltip from "@mui/material/Tooltip";
 import Navigation from "./Navigation";
@@ -51,6 +50,9 @@ const Header = () => {
     }).then((res) => {
       if (res?.error === false) {
         context.setIsLogin(false);
+        context.setUserData(null);
+        context.setCartData([]);
+        context.setMyListData([]);
         context.openAlertBox("success", res?.message);
         localStorage.removeItem("accesstoken");
         localStorage.removeItem("refreshtoken");
@@ -196,7 +198,7 @@ const Header = () => {
                         <span className="text-[14px]">Orders</span>
                       </MenuItem>
                     </Link>
-                    <Link to="my-list" className="block w-full">
+                    <Link to="/my-list" className="block w-full">
                       <MenuItem
                         onClick={handleClose}
                         className="flex items-center gap-2 !py-2"
@@ -217,26 +219,21 @@ const Header = () => {
               )}
 
               <li>
-                <Tooltip title="Compare">
-                  <IconButton aria-label="cart">
-                    <StyledBadge badgeContent={4} color="secondary">
-                      <IoGitCompareOutline />
-                    </StyledBadge>
-                  </IconButton>
-                </Tooltip>
                 <Tooltip title="Wishlist">
-                  <IconButton aria-label="cart">
-                    <StyledBadge badgeContent={4} color="secondary">
-                      <FaRegHeart />
-                    </StyledBadge>
-                  </IconButton>
+                  <Link to="/my-list">
+                    <IconButton aria-label="wishlist">
+                      <StyledBadge badgeContent={context?.myListData?.length || 0} showZero color="secondary">
+                        <FaRegHeart />
+                      </StyledBadge>
+                    </IconButton>
+                  </Link>
                 </Tooltip>
                 <Tooltip title="Cart">
                   <IconButton
                     aria-label="cart"
                     onClick={() => context.setOpenCartPanel(true)}
                   >
-                    <StyledBadge badgeContent={4} color="secondary">
+                    <StyledBadge badgeContent={context?.cartData?.length || 0} showZero color="secondary">
                       <MdOutlineShoppingCart />
                     </StyledBadge>
                   </IconButton>
